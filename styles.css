@@ -1,0 +1,226 @@
+@charset "UTF-8";
+/* CSS Document */
+
+body {
+  background-color: black;
+  font-family:Consolas, "Andale Mono", "Lucida Console", "Lucida Sans Typewriter", Monaco, "Courier New", "monospace";
+  overflow-y: scroll; /* Show vertical scrollbar */
+  overflow-x: scroll; /* Show horizontal scrollbar */
+      
+}
+
+h1 {    
+  /*Viewport is the browser window size. 1vw = 1% of viewport width*/
+    font-size:10vw;
+    text-align: center;
+    color:white;     
+}
+
+h2 {
+text-align:left;
+color:white;
+position:fixed;
+}
+
+p { color: black;}
+
+img{
+
+}
+
+.index-img{
+max-width:16.7vw;
+min-height:33.3vh;
+object-fit:cover;
+}
+
+/* Just use those */
+left-h1 {
+color:black;
+text-align:right;
+}
+right-h1 {
+
+color:whitesmoke;
+text-align:left;
+}
+
+.left-container{
+    height:80vh;
+    width:40vw;
+    position:fixed;
+    top:5vh;
+    left:5vw;
+}
+.right-container{
+    height:80vh;
+    width:40vw;
+    position:fixed;
+    top:5vh;
+    right:8vw;
+}
+
+.bkgd-rect {
+    height:100vh;
+    width:50vw;
+    background-color:black;
+    z-index: -1;
+    position:fixed;
+    top:0;
+    right:0;
+}
+
+.left-footer{
+    height:10vh;
+    width:40vw;
+    position:fixed;
+    bottom:0;
+    left:5vw;
+    
+}
+.right-footer{
+    height:10vh;
+    width:40vw;
+    position:fixed;
+    bottom:0;
+    right:8vw;
+    
+}
+
+.left-shadow-box{
+    height:100vh;
+    width:50vw;
+    background-color:white;
+    opacity:0.3;
+    z-index: 100;
+    position:fixed;
+    top:0;
+    left:0;
+    
+}
+
+.picture-box{
+    height:33.2vh;
+    width:16.6vw; 
+}
+
+#pic11{ top:0vh; left:0vw; position:absolute}
+#pic12{ top:0vh; left:16.7vw; position:absolute}
+#pic13{ top:0vh; left:33.4vw; position:absolute}
+#pic21{ top:33.4vh; left:0vw; position:absolute}
+#pic22{ top:33.4vh; left:16.7vw; position:absolute}
+#pic23{ top:33.4vh; left:33.4vw; position:absolute}
+#pic31{ top:66.8vh; left:0vw; position:absolute}
+#pic32{ top:66.8vh; left:16.7vw; position:absolute}
+#pic33{ top:66.8vh; left:33.4vw; position:absolute}
+
+.animate-charcter
+{
+   text-transform: uppercase;
+  background-image: linear-gradient(
+    90deg,
+    #d9cb9c 0%,
+    #803a2d 29%,
+    #ff1361 67%,
+    #fff822 100%
+  );
+  background-size: auto auto;
+  background-clip: border-box;
+  background-size: 200% auto;
+  color: #fff;
+  background-clip: text;
+  text-fill-color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textclip 3s linear infinite;
+  display: inline-block;
+      font-size: 190px;
+}
+
+@keyframes textclip {
+  to {
+    background-position: 200% center;
+  }
+}
+
+/* navigation bar*/
+.topnav {
+  overflow: hidden;
+  background-color: black;
+  z-index:1001;
+  position:fixed;
+  top:0; 
+  right:0;
+}
+
+.topnav a {
+  float: right;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+  font-size: 17px;
+}
+
+.topnav a:hover {
+  background-color: #d4c07f;
+  color: black;
+}
+
+.topnav a.active {
+  background-color:#803a2d ;
+  color: white;
+}
+
+/*scroll box goes with website flow so position is relative */
+.scroll-box{
+    width: 80vw;
+    height: 400px;
+    /* change the below once done shifting positions 
+    background-color: aquamarine;
+    opacity:1;
+    */
+    position:relative;
+    margin:auto; 
+}
+
+.contact-box{
+width: 80vw;
+height:300px; 
+}
+
+.info-box{
+    width: 80vw;
+    height: 400px;
+    /* change the below once done shifting positions */
+    background-color: black;
+    opacity:1;
+    position:absolute;
+}
+
+.banner{
+width: 100%;
+height:150px;
+position:fixed;  
+}
+
+#about-scroll-history{
+
+top:100px; 
+height: 900px;
+}
+
+#about-scroll-what-is{
+
+top:100px; 
+height: 600px;
+}
+
+#about-scroll-creator{
+top:100px; 
+height: 750px;
+}
+
+
+
+
