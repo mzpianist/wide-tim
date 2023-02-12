@@ -32,11 +32,29 @@ let CrossLeft =new Image('100','100');
 CrossLeft.src = "wider-src/cross-1.png"; 
     
 let CrossRight =new Image('100','100');  
-CrossRight.src = "wider-src/cross-1.png";   
+CrossRight.src = "wider-src/cross-2.png";   
    
 wide_tim_src_images.push(HeadLeftRight, ElbowIn, ElbowOut, BodyLine, CrossLeft, CrossRight, HeadRight, HeadLeft)
-
 const rotation_angles = Array(25).fill(0);
+ 
+//this is to detect if any key is pressed. 1= something pressed and 0=nothing pressed. Used later.
+var key_pressed = 0;
+    
+
+document.addEventListener('keydown', function(){
+    key_pressed =1;
+  }
+);
+    
+document.addEventListener('keyup', function(){
+  key_pressed =0;
+    /*
+  var name = event.key;
+  var code = event.code;
+  console.log(`Key released ${name} \r\n Key code value: ${code}`);
+  console.log(key_pressed);
+  */
+});
     
 //initialize the wide_tim_object array and wide_tim_images array
 for (let i=1; i<=5;i++){
@@ -44,27 +62,24 @@ for (let i=1; i<=5;i++){
         const image_ij = document.getElementById(""+i+""+j+"");
         //console.log("object detected: "+i+""+j+"");
         wide_tim_objects.push(image_ij);
-
-        
         const rand = Math.floor(Math.random()*6);
         var ind = rand;
         image_ij.src = wide_tim_src_images[ind].src;
-        
-        //dblclick to change a picture
-        image_ij.addEventListener("keydown",function (){
-            //console.log("hi");
+   
+        //click once to change picture
+        image_ij.addEventListener("click",function(){
+            //no hold of key: change picture
+            if(key_pressed==0){
             ind = (ind+1)%6;
             image_ij.src = wide_tim_src_images[ind].src;
-        });
-        
-        //click to rotate
-        image_ij.addEventListener("click",function(){
-            rotation_angles[5*i+j-6]+=90;
+            }else if(key_pressed==1){
+            //click and hold some key to rotate
+            rotation_angles[5*i+j-6]=(rotation_angles[5*i+j-6]+90)%360;
             image_ij.style.transform = "rotate("+rotation_angles[5*i+j-6]+"deg)";   
+            }
         });
-        
-
     }
 }
+   
 }
 window.onload = init;
