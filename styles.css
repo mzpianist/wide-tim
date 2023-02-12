@@ -25,7 +25,6 @@ position:fixed;
 p { color: black;}
 
 img{
-
 }
 
 .index-img{
@@ -221,6 +220,30 @@ top:100px;
 height: 750px;
 }
 
+/*for the game */
+.grid_container{
+    background-color:antiquewhite;
+    width:500px;
+    height:500px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top:100px;
+}
 
+.gridrow{
+height:100px;
+float:top;
+text-align:center;
 
+}
 
+.gridbox{
+width:100px;
+height:100px;
+float:left;
+}
+
+.wide-img{
+max-width:100%;
+max_height:100%
+}
