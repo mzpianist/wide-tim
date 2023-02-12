@@ -70,12 +70,14 @@ for (let i=1; i<=5;i++){
         image_ij.addEventListener("click",function(){
             //no hold of key: change picture
             if(key_pressed==0){
-            ind = (ind+1)%6;
-            image_ij.src = wide_tim_src_images[ind].src;
+             rotation_angles[5*i+j-6]=(rotation_angles[5*i+j-6]+90)%360;
+            image_ij.style.transform = "rotate("+rotation_angles[5*i+j-6]+"deg)";   
+                
             }else if(key_pressed==1){
             //click and hold some key to rotate
-            rotation_angles[5*i+j-6]=(rotation_angles[5*i+j-6]+90)%360;
-            image_ij.style.transform = "rotate("+rotation_angles[5*i+j-6]+"deg)";   
+                ind = (ind+1)%6;
+            image_ij.src = wide_tim_src_images[ind].src;
+           
             }
         });
     }
