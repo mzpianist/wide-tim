@@ -51,8 +51,8 @@ for (let i=1; i<=5;i++){
         image_ij.src = wide_tim_src_images[ind].src;
         
         //dblclick to change a picture
-        image_ij.addEventListener("dblclick",function (){
-            console.log("hi");
+        image_ij.addEventListener("keydown",function (){
+            //console.log("hi");
             ind = (ind+1)%6;
             image_ij.src = wide_tim_src_images[ind].src;
         });
