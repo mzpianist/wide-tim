@@ -12,9 +12,11 @@ The generated site is written to:
 dist
 ```
 
-## Recommended path: GitHub Pages
+## GitHub Pages
 
 GitHub Pages can host this static Astro site directly from GitHub Actions. This repo includes `.github/workflows/deploy.yml`, which builds and deploys the site whenever changes are pushed to `main`.
+
+The workflow file is needed because this is an Astro project: GitHub Pages serves static files, but the source code first needs to run `npm run build` to generate the `dist` output. The workflow handles that build step on GitHub and publishes the generated files.
 
 The repo is configured for the custom domain `widetim.com`:
 
@@ -39,7 +41,7 @@ gh auth login -h github.com
 gh repo create wide-tim --public --source=. --remote=origin --push
 ```
 
-If you prefer a private repository, use `--private` instead of `--public`. GitHub Pages is public even when the repository is private.
+GitHub Pages is available for public repositories on GitHub Free. Private-repository Pages requires a paid GitHub plan, and the published site is still publicly accessible.
 
 3. On GitHub, open the repository settings.
 4. Go to `Pages`.
@@ -75,39 +77,6 @@ www  CNAME  YOUR-GITHUB-USERNAME.github.io
 Do not include the repository name in the `www` CNAME target.
 
 Future changes can be deployed by committing and pushing to `main`.
-
-## Alternative path: Netlify
-
-Netlify is the simplest fit for this repository because Astro builds to static files and this repo now includes `netlify.toml`.
-
-### Git-based deployment
-
-1. Commit the deployment config:
-
-```sh
-git add netlify.toml DEPLOYMENT.md
-git commit -m "Add deployment config"
-```
-
-2. Create a GitHub repository and push this repo.
-
-With GitHub CLI:
-
-```sh
-gh auth login -h github.com
-gh repo create wide-tim --public --source=. --remote=origin --push
-```
-
-If you prefer a private repository, use `--private` instead of `--public`.
-
-3. In Netlify, create a new site from the GitHub repository.
-4. Use these settings if Netlify does not auto-detect them:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-5. Add `widetim.com` as the custom domain in Netlify.
-6. In the domain registrar DNS settings, point the domain to Netlify using the DNS records Netlify provides.
-
-Future changes can be deployed by committing and pushing to the production branch.
 
 ## Manual fallback
 
