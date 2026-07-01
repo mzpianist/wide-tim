@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import InstagramEmbed from "../../components/InstagramEmbed.astro";
 import { aboutTim } from "../../content/aboutTim";
+import { withBase, withBaseHtml } from "../../lib/paths";
 
 // Accent palette shared with the rest of the site. Cycled across quote cards
 // so each press source gets its own color.
@@ -19,7 +20,7 @@ const palette = [
   <h1>{aboutTim.heading}</h1>
 
   <section class="intro">
-    {aboutTim.introParagraphs.map((p) => <p set:html={p} />)}
+    {aboutTim.introParagraphs.map((p) => <p set:html={withBaseHtml(p)} />)}
   </section>
 
   <hr class="section-divider" />
@@ -28,7 +29,7 @@ const palette = [
     <div class="about-copy">
       <h2>{aboutTim.aboutHeading}</h2>
       <p class="pull-quote">{aboutTim.aboutPullQuote}</p>
-      {aboutTim.aboutParagraphs.map((p) => <p set:html={p} />)}
+      {aboutTim.aboutParagraphs.map((p) => <p set:html={withBaseHtml(p)} />)}
     </div>
     <div class="about-image">
       <InstagramEmbed url="https://www.instagram.com/p/CLPr1dgnLd5/" captioned={false} />
@@ -39,7 +40,7 @@ const palette = [
 
   <section>
     <h2>{aboutTim.widerHeading}</h2>
-    <p set:html={aboutTim.widerLeadParagraph} />
+    <p set:html={withBaseHtml(aboutTim.widerLeadParagraph)} />
   </section>
 
   <hr class="section-divider" />
@@ -70,9 +71,9 @@ const palette = [
 
   <section>
     <h2>{aboutTim.inPersonHeading}</h2>
-    <p set:html={aboutTim.inPersonLeadParagraph} />
+    <p set:html={withBaseHtml(aboutTim.inPersonLeadParagraph)} />
     <ul>
-      {aboutTim.inPersonBullets.map((b) => <li set:html={b} />)}
+      {aboutTim.inPersonBullets.map((b) => <li set:html={withBaseHtml(b)} />)}
     </ul>
 
     {
@@ -86,7 +87,7 @@ const palette = [
           <div class="ic-strip" data-ic-strip="true">
             {aboutTim.inPersonImages.map((img, i) => (
               <figure class="ic-item">
-                <img src={img.src} alt={img.alt} loading={i === 0 ? "eager" : "lazy"} />
+                <img src={withBase(img.src)} alt={img.alt} loading={i === 0 ? "eager" : "lazy"} />
               </figure>
             ))}
           </div>
@@ -104,7 +105,7 @@ const palette = [
 
   <section>
     <h2>{aboutTim.whatsNextHeading}</h2>
-    {aboutTim.whatsNextParagraphs.map((p) => <p set:html={p} />)}
+    {aboutTim.whatsNextParagraphs.map((p) => <p set:html={withBaseHtml(p)} />)}
   </section>
 </BaseLayout>
 

@@ -3,6 +3,8 @@
 // Otherwise renders a visible placeholder box.
 // Usage:
 //   <PlaceholderImage src={image} alt={imageAlt} label="About Tim portrait" />
+import { withBase } from "../lib/paths";
+
 interface Props {
   src?: string;
   alt?: string;
@@ -17,7 +19,7 @@ const hasSrc = src && src.trim().length > 0;
 
 {
   hasSrc ? (
-    <img src={src} alt={alt} style={aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""} />
+    <img src={withBase(src)} alt={alt} style={aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""} />
   ) : (
     <div class="placeholder-img" style={aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}>
       {label}

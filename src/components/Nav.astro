@@ -1,7 +1,8 @@
 ---
 import { nav, site } from "../content/site";
+import { withBase, withoutBase } from "../lib/paths";
 
-const pathname = Astro.url.pathname;
+const pathname = withoutBase(Astro.url.pathname);
 function isActive(href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
@@ -10,7 +11,7 @@ function isActive(href: string) {
 
 <header class="site-header">
   <div class="site-header-inner">
-    <a class="brand" href="/">{site.title}</a>
+    <a class="brand" href={withBase("/")}>{site.title}</a>
     <div class="nav-right">
     <nav class="site-nav" aria-label="Primary">
       <ul class="nav-list">
@@ -18,7 +19,7 @@ function isActive(href: string) {
           nav.map((item) => (
             <li class={`nav-item ${item.children ? "has-children" : ""}`}>
               <a
-                href={item.href}
+                href={withBase(item.href)}
                 class={isActive(item.href) ? "active" : ""}
                 target={item.external ? "_blank" : undefined}
                 rel={item.external ? "noopener noreferrer" : undefined}
@@ -30,7 +31,7 @@ function isActive(href: string) {
                   {item.children.map((child) => (
                     <li>
                       <a
-                        href={child.href}
+                        href={withBase(child.href)}
                         class={isActive(child.href) ? "active" : ""}
                         target={child.external ? "_blank" : undefined}
                         rel={child.external ? "noopener noreferrer" : undefined}

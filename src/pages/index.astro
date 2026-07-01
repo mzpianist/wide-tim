@@ -6,6 +6,7 @@ import PlaceholderImage from "../components/PlaceholderImage.astro";
 import LatestPostsCarousel from "../components/LatestPostsCarousel.astro";
 import { home } from "../content/home";
 import { carouselSlides } from "../content/carousel";
+import { withBase } from "../lib/paths";
 
 // Eagerly import everything in src/assets/carousel/ so Astro can optimize
 // each image at build time (resize, webp, content-hashed filenames). Used
@@ -63,7 +64,7 @@ const heroSlides = carouselSlides
           <li>
             <a
               class="card-link"
-              href={link.href}
+              href={withBase(link.href)}
               target={link.external ? "_blank" : undefined}
               rel={link.external ? "noopener noreferrer" : undefined}
               style={link.accent ? `--card-accent: ${link.accent}` : undefined}
@@ -82,7 +83,7 @@ const heroSlides = carouselSlides
       }
     </ul>
 
-    <a class="contact-bar" href={home.contactBar.href}>
+    <a class="contact-bar" href={withBase(home.contactBar.href)}>
       <span class="contact-bar-label">{home.contactBar.label}</span>
       <span class="contact-bar-arrow" aria-hidden="true">→</span>
     </a>

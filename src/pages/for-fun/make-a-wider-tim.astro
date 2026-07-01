@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
 
 // Tile set — same hand-drawn art from the 2023 game.
 // Order here defines the index used in share-link encoding; don't reorder
@@ -14,6 +15,7 @@ const TILES = [
   { file: "head-r.png", name: "Head R" },
   { file: "head-l.png", name: "Head L" },
 ];
+const tileBase = withBase("/make-a-wider-tim-src/") ?? "/make-a-wider-tim-src/";
 ---
 
 <BaseLayout title="Make a Wider Tim">
@@ -50,7 +52,7 @@ const TILES = [
           title={t.name}
           aria-label={`Select ${t.name}`}
         >
-          <img src={`/make-a-wider-tim-src/${t.file}`} alt="" />
+          <img src={`${tileBase}${t.file}`} alt="" />
         </button>
       ))
     }
@@ -66,7 +68,7 @@ const TILES = [
   </div>
 
   <div class="grid-wrap">
-    <div class="grid-container" id="wider-tim-grid"></div>
+    <div class="grid-container" id="wider-tim-grid" data-tile-base={tileBase}></div>
   </div>
 </BaseLayout>
 
@@ -82,7 +84,9 @@ const TILES = [
     "head-r.png",
     "head-l.png",
   ];
-  const BASE = "/make-a-wider-tim-src/";
+  const BASE =
+    (document.getElementById("wider-tim-grid") as HTMLDivElement).dataset
+      .tileBase || "/make-a-wider-tim-src/";
 
   // 32-char alphabet → 1 char per cell encodes (tile 0-7) * 4 + (rotation/90).
   const ALPHA = "0123456789abcdefghijklmnopqrstuv";

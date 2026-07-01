@@ -1,4 +1,6 @@
 ---
 // Redirect /about to /about/wide-tim
-return Astro.redirect("/about/wide-tim");
+import { withBase } from "../../lib/paths";
+
+return Astro.redirect(withBase("/about/wide-tim") ?? "/about/wide-tim");
 ---
