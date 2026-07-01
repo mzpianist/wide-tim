@@ -1,0 +1,430 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+// Tile set — same hand-drawn art from the 2023 game.
+// Order here defines the index used in share-link encoding; don't reorder
+// without bumping a version in the encode/decode code.
+const TILES = [
+  { file: "head-lr.png", name: "Head L/R" },
+  { file: "elbow-in.png", name: "Elbow in" },
+  { file: "elbow-out.png", name: "Elbow out" },
+  { file: "line.png", name: "Line" },
+  { file: "cross-1.png", name: "Cross 1" },
+  { file: "cross-2.png", name: "Cross 2" },
+  { file: "head-r.png", name: "Head R" },
+  { file: "head-l.png", name: "Head L" },
+];
+---
+
+<BaseLayout title="Make a Wider Tim">
+  <h1>Make a Wider Tim!</h1>
+
+  <p class="instructions">
+    Build the Widest Tim you can. Pick a tile from the palette and click
+    a square to place it. Click a square that already has that tile — or switch
+    to <strong>rotate mode</strong> (the ✕) — to spin it 90°. Drag the sliders
+    to make the grid bigger or smaller.
+  </p>
+
+  <div class="controls">
+    <label>
+      Rows
+      <input id="rows-input" type="number" min="3" max="20" value="5" />
+    </label>
+    <label>
+      Cols
+      <input id="cols-input" type="number" min="3" max="20" value="5" />
+    </label>
+    <button id="reset-btn" type="button">Shuffle</button>
+    <button id="share-btn" type="button">Copy share link</button>
+    <span id="toast" class="toast" aria-live="polite"></span>
+  </div>
+
+  <div class="palette" id="palette" role="toolbar" aria-label="Tile picker">
+    {
+      TILES.map((t, i) => (
+        <button
+          class="palette-tile"
+          data-tile={i}
+          type="button"
+          title={t.name}
+          aria-label={`Select ${t.name}`}
+        >
+          <img src={`/make-a-wider-tim-src/${t.file}`} alt="" />
+        </button>
+      ))
+    }
+    <button
+      class="palette-clear"
+      id="palette-clear"
+      type="button"
+      title="Rotate mode (no brush)"
+      aria-label="Rotate mode"
+    >
+      ✕
+    </button>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="grid-container" id="wider-tim-grid"></div>
+  </div>
+</BaseLayout>
+
+<script>
+  // Keep this in sync with the TILES array in the frontmatter above.
+  const TILE_FILES = [
+    "head-lr.png",
+    "elbow-in.png",
+    "elbow-out.png",
+    "line.png",
+    "cross-1.png",
+    "cross-2.png",
+    "head-r.png",
+    "head-l.png",
+  ];
+  const BASE = "/make-a-wider-tim-src/";
+
+  // 32-char alphabet → 1 char per cell encodes (tile 0-7) * 4 + (rotation/90).
+  const ALPHA = "0123456789abcdefghijklmnopqrstuv";
+
+  type Cell = { tile: number; rot: number };
+
+  const state = {
+    rows: 5,
+    cols: 5,
+    cells: [] as Cell[],
+    brush: null as number | null,
+  };
+
+  const grid = document.getElementById("wider-tim-grid") as HTMLDivElement;
+  const rowsInput = document.getElementById("rows-input") as HTMLInputElement;
+  const colsInput = document.getElementById("cols-input") as HTMLInputElement;
+  const resetBtn = document.getElementById("reset-btn") as HTMLButtonElement;
+  const shareBtn = document.getElementById("share-btn") as HTMLButtonElement;
+  const paletteClear = document.getElementById(
+    "palette-clear",
+  ) as HTMLButtonElement;
+  const toast = document.getElementById("toast") as HTMLSpanElement;
+
+  function randomCell(): Cell {
+    return {
+      tile: Math.floor(Math.random() * TILE_FILES.length),
+      rot: 0,
+    };
+  }
+
+  function encode(): string {
+    const chars: string[] = [];
+    for (const c of state.cells) {
+      const v = ((c.tile & 0x07) << 2) | ((c.rot / 90) & 0x03);
+      chars.push(ALPHA[v] ?? "0");
+    }
+    return chars.join("");
+  }
+
+  function decode(s: string): Cell[] | null {
+    const out: Cell[] = [];
+    for (const ch of s) {
+      const v = ALPHA.indexOf(ch);
+      if (v < 0) return null;
+      out.push({ tile: v >> 2, rot: (v & 0x03) * 90 });
+    }
+    return out;
+  }
+
+  function updateHash() {
+    const h = `#r=${state.rows}&c=${state.cols}&d=${encode()}`;
+    history.replaceState(null, "", h);
+  }
+
+  function loadHash(): boolean {
+    const h = window.location.hash.replace(/^#/, "");
+    if (!h) return false;
+    const params = new URLSearchParams(h);
+    const r = parseInt(params.get("r") || "", 10);
+    const c = parseInt(params.get("c") || "", 10);
+    const d = params.get("d") || "";
+    if (!Number.isFinite(r) || !Number.isFinite(c)) return false;
+    if (r < 3 || r > 20 || c < 3 || c > 20) return false;
+    if (d.length !== r * c) return false;
+    const cells = decode(d);
+    if (!cells) return false;
+    state.rows = r;
+    state.cols = c;
+    state.cells = cells;
+    rowsInput.value = String(r);
+    colsInput.value = String(c);
+    return true;
+  }
+
+  function applyCellToImg(idx: number) {
+    const img = grid.children[idx] as HTMLImageElement | undefined;
+    if (!img) return;
+    const c = state.cells[idx];
+    img.src = BASE + TILE_FILES[c.tile];
+    img.style.transform = `rotate(${c.rot}deg)`;
+  }
+
+  function buildGrid() {
+    grid.style.setProperty("--cols", String(state.cols));
+    grid.style.setProperty("--rows", String(state.rows));
+    grid.style.aspectRatio = `${state.cols} / ${state.rows}`;
+    grid.innerHTML = "";
+
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < state.rows * state.cols; i++) {
+      const img = document.createElement("img");
+      img.className = "wide-img";
+      img.alt = "wide tim tile";
+      img.draggable = false;
+      const c = state.cells[i];
+      img.src = BASE + TILE_FILES[c.tile];
+      img.style.transform = `rotate(${c.rot}deg)`;
+      img.addEventListener("click", () => onCellClick(i));
+      frag.appendChild(img);
+    }
+    grid.appendChild(frag);
+  }
+
+  function onCellClick(i: number) {
+    const c = state.cells[i];
+    if (state.brush !== null) {
+      if (c.tile === state.brush) {
+        // Clicking the same tile again rotates it — keeps the one-handed feel
+        // of the original game even while a brush is selected.
+        c.rot = (c.rot + 90) % 360;
+      } else {
+        c.tile = state.brush;
+        c.rot = 0;
+      }
+    } else {
+      c.rot = (c.rot + 90) % 360;
+    }
+    applyCellToImg(i);
+    updateHash();
+  }
+
+  function shuffle() {
+    state.cells = Array.from(
+      { length: state.rows * state.cols },
+      randomCell,
+    );
+    buildGrid();
+    updateHash();
+  }
+
+  function resize(newRows: number, newCols: number) {
+    newRows = Math.min(20, Math.max(3, newRows));
+    newCols = Math.min(20, Math.max(3, newCols));
+    const oldCells = state.cells;
+    const oldRows = state.rows;
+    const oldCols = state.cols;
+    const next: Cell[] = [];
+    for (let r = 0; r < newRows; r++) {
+      for (let c = 0; c < newCols; c++) {
+        if (r < oldRows && c < oldCols) {
+          next.push(oldCells[r * oldCols + c]);
+        } else {
+          next.push(randomCell());
+        }
+      }
+    }
+    state.rows = newRows;
+    state.cols = newCols;
+    state.cells = next;
+    rowsInput.value = String(newRows);
+    colsInput.value = String(newCols);
+    buildGrid();
+    updateHash();
+  }
+
+  function setBrush(n: number | null) {
+    state.brush = n;
+    document.querySelectorAll(".palette-tile").forEach((el) => {
+      const i = Number((el as HTMLElement).dataset.tile);
+      el.classList.toggle("selected", n !== null && i === n);
+    });
+    paletteClear.classList.toggle("selected", n === null);
+  }
+
+  let toastTimer: number | undefined;
+  function showToast(msg: string) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast.classList.remove("show");
+    }, 1800);
+  }
+
+  // Palette wiring
+  document.querySelectorAll(".palette-tile").forEach((el) => {
+    el.addEventListener("click", () => {
+      const i = Number((el as HTMLElement).dataset.tile);
+      setBrush(state.brush === i ? null : i);
+    });
+  });
+  paletteClear.addEventListener("click", () => setBrush(null));
+
+  // Control wiring
+  rowsInput.addEventListener("change", () => {
+    const v = parseInt(rowsInput.value, 10);
+    resize(Number.isFinite(v) ? v : state.rows, state.cols);
+  });
+  colsInput.addEventListener("change", () => {
+    const v = parseInt(colsInput.value, 10);
+    resize(state.rows, Number.isFinite(v) ? v : state.cols);
+  });
+  resetBtn.addEventListener("click", shuffle);
+  shareBtn.addEventListener("click", async () => {
+    updateHash();
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied!");
+    } catch {
+      showToast("Copy failed — link is in the URL bar.");
+    }
+  });
+
+  // Keyboard: Esc clears brush
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && state.brush !== null) setBrush(null);
+  });
+
+  // Init: hydrate from hash if valid, else start random
+  if (!loadHash()) {
+    state.cells = Array.from(
+      { length: state.rows * state.cols },
+      randomCell,
+    );
+  }
+  setBrush(null);
+  buildGrid();
+</script>
+
+<style>
+  .instructions {
+    max-width: 60ch;
+    margin: 0.75rem auto;
+    color: var(--fg-muted);
+  }
+
+  /* ---- Controls row ---- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+  }
+  .controls label {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+    color: var(--fg-muted);
+    font-size: 0.95em;
+  }
+  .controls input[type="number"] {
+    width: 4rem;
+    padding: 0.3rem 0.4rem;
+    background: var(--bg-elev);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font: inherit;
+  }
+  .controls button {
+    padding: 0.4rem 0.9rem;
+    background: var(--bg-elev);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .controls button:hover {
+    background: var(--border);
+  }
+  .toast {
+    opacity: 0;
+    transition: opacity 180ms ease;
+    color: var(--fg-muted);
+    font-size: 0.9em;
+  }
+  .toast.show {
+    opacity: 1;
+  }
+
+  /* ---- Palette ---- */
+  .palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    max-width: 640px;
+  }
+  .palette-tile,
+  .palette-clear {
+    width: 56px;
+    height: 56px;
+    padding: 4px;
+    background: antiquewhite;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    font-size: 1.25rem;
+    transition: border-color 120ms ease, transform 120ms ease;
+  }
+  .palette-clear {
+    background: var(--bg-elev);
+    color: var(--fg-muted);
+  }
+  .palette-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+  .palette-tile.selected,
+  .palette-clear.selected {
+    border-color: var(--fg);
+    transform: translateY(-2px);
+  }
+
+  /* ---- Grid ---- */
+  .grid-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0 2rem;
+  }
+  .grid-container {
+    background-color: antiquewhite;
+    /* Tiles stay roughly 30–80px depending on column count, capped to viewport. */
+    width: min(95vw, 900px, calc(var(--cols) * 80px));
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    grid-template-rows: repeat(var(--rows), 1fr);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .wide-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-drag: none;
+    transition: transform 120ms ease;
+    display: block;
+  }
+  .wide-img:hover {
+    filter: brightness(1.05);
+  }
+</style>

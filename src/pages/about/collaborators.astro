@@ -1,0 +1,834 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import {
+  collaborations,
+  formatDateShort,
+  groupByDate,
+  groupByCollaborator,
+  parseDate,
+  repeatCollaborators,
+} from "../../content/collaborators";
+
+const byDate = groupByDate(collaborations);
+const byCollaborator = groupByCollaborator(collaborations);
+const repeats = repeatCollaborators(collaborations);
+
+// Distinct years present in the data, newest first — used to render the
+// year-filter chips in the "By collaborator" view. The color each year
+// gets here matches the year's accent in the "By date" view: same index
+// into the palette, same descending order.
+const allYears = Array.from(
+  new Set(collaborations.map((c) => parseDate(c.date).year)),
+).sort((a, b) => b - a);
+const yearColor = (y: number) =>
+  palette[allYears.indexOf(y) % palette.length];
+
+// Number of unique collaborators active in each year — shown on the
+// year chip when it's the active filter, so "2026 (5)" tells you the
+// filtered list will hold 5 collaborators before you scan.
+const yearCollabCount = new Map<number, number>();
+for (const y of allYears) {
+  const names = new Set(
+    collaborations
+      .filter((c) => parseDate(c.date).year === y)
+      .map((c) => c.collaborator),
+  );
+  yearCollabCount.set(y, names.size);
+}
+
+// Shared accent palette — same six colors used across the site. Years in
+// the "By date" view cycle through these so each block has a clear color
+// identity instead of looking like one undifferentiated wall of names.
+const palette = [
+  "#f08066",
+  "#4dbeb0",
+  "#e8b441",
+  "#a896d8",
+  "#5fb3e0",
+  "#ec84a3",
+];
+
+// Split a year's months into 3 sequential columns balanced by event count,
+// so each column reads top-to-bottom in chronological order. Months are
+// never split across columns. Tries every valid (i, j) split point pair
+// and picks the partition with the smallest max-min event count — that
+// gives genuinely balanced columns instead of front-loading the first one.
+// Years with fewer months than columns place one month per column from
+// the left, leaving the trailing columns empty (so e.g. 2026's Feb and
+// May land in distinct columns rather than getting jammed together).
+type Month = (typeof byDate)[number]["months"][number];
+function partitionMonths(months: Month[]): Month[][] {
+  const n = months.length;
+  if (n === 0) return [[], [], []];
+  if (n <= 3) {
+    const cols: Month[][] = [[], [], []];
+    for (let i = 0; i < n; i++) cols[i].push(months[i]);
+    return cols;
+  }
+
+  const counts = months.map((m) => m.items.length);
+  const prefix = [0];
+  for (let i = 0; i < n; i++) prefix.push(prefix[i] + counts[i]);
+
+  let bestI = 1;
+  let bestJ = 2;
+  let bestRange = Infinity;
+  for (let i = 1; i < n - 1; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const s1 = prefix[i];
+      const s2 = prefix[j] - prefix[i];
+      const s3 = prefix[n] - prefix[j];
+      const range = Math.max(s1, s2, s3) - Math.min(s1, s2, s3);
+      if (range < bestRange) {
+        bestRange = range;
+        bestI = i;
+        bestJ = j;
+      }
+    }
+  }
+  return [
+    months.slice(0, bestI),
+    months.slice(bestI, bestJ),
+    months.slice(bestJ, n),
+  ];
+}
+---
+
+<BaseLayout title="Past Collaborators">
+  <h1>Past Collaborators</h1>
+  <p class="legend">
+    {collaborations.length} collaborations across {byCollaborator.length} groups.{" "}
+    <strong>Bold</strong> names are repeat collaborators.
+  </p>
+
+  <div class="view-tabs" role="tablist" aria-label="Collaborations view">
+    <button
+      class="view-tab"
+      role="tab"
+      aria-selected="true"
+      data-view-tab="date"
+    >
+      By date
+    </button>
+    <button
+      class="view-tab"
+      role="tab"
+      aria-selected="false"
+      data-view-tab="collab"
+    >
+      By collaborator name
+    </button>
+  </div>
+
+  <section class="view-panel" data-view-panel="date">
+    {
+      byDate.map((yearGroup, i) => {
+        const accent = palette[i % palette.length];
+        const count = yearGroup.months.reduce((n, m) => n + m.items.length, 0);
+        return (
+          <details class="year-block" style={`--year-accent: ${accent}`}>
+            <summary class="year-head">
+              <h2 class="year-title">{yearGroup.year}</h2>
+              <span class="year-count">{count} collaboration{count === 1 ? "" : "s"}</span>
+              <span class="year-chevron" aria-hidden="true">▾</span>
+            </summary>
+            <div class="month-grid">
+              {partitionMonths(yearGroup.months).map((monthCol) => (
+                <div class="month-column">
+                  {monthCol.map((m) => (
+                    <div class="month-block">
+                      <h3 class="month-title">{m.monthLabel}</h3>
+                      <ul class="collab-list">
+                        {m.items.map((c) => {
+                          const isRepeat = repeats.has(c.collaborator);
+                          const { day } = parseDate(c.date);
+                          return (
+                            <li class="collab-item">
+                              <div class="collab-line">
+                                <span class={`collab-name${isRepeat ? " repeat" : ""}`}>
+                                  {c.collaborator}
+                                </span>
+                                {c.event && (
+                                  <>
+                                    <span class="collab-sep" aria-hidden="true">—</span>
+                                    {c.url ? (
+                                      <a
+                                        class="collab-event"
+                                        href={c.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        {c.event}
+                                      </a>
+                                    ) : (
+                                      <span class="collab-event">{c.event}</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                              {(day || c.group || c.note) && (
+                                <div class="collab-meta">
+                                  {day && <span>{m.monthLabel} {day}</span>}
+                                  {c.group && <span class="tag">{c.group}</span>}
+                                  {c.note && <span class="note">{c.note}</span>}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </details>
+        );
+      })
+    }
+  </section>
+
+  <section class="view-panel" data-view-panel="collab" hidden>
+    <div class="collab-toolbar">
+      <input
+        type="search"
+        class="collab-search"
+        placeholder="Search collaborators…"
+        aria-label="Search collaborators"
+        data-collab-search="true"
+      />
+      <div class="sort-toggle" role="group" aria-label="Sort collaborators">
+        <button
+          class="year-chip"
+          type="button"
+          aria-pressed="true"
+          data-sort="name"
+        >
+          A–Z
+        </button>
+        <button
+          class="year-chip"
+          type="button"
+          aria-pressed="false"
+          data-sort="count"
+        >
+          Most
+        </button>
+      </div>
+      <div class="year-chips" role="group" aria-label="Filter by year">
+        <button
+          class="year-chip"
+          type="button"
+          aria-pressed="true"
+          data-year-chip="all"
+        >
+          All
+        </button>
+        {allYears.map((y) => (
+          <button
+            class="year-chip"
+            type="button"
+            aria-pressed="false"
+            data-year-chip={String(y)}
+            style={`--chip-accent: ${yearColor(y)}`}
+          >
+            {y}
+            <span class="chip-count">({yearCollabCount.get(y)})</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <p class="empty-state" data-empty-state="true" hidden>
+      No collaborators match.
+    </p>
+
+    <ul class="collab-rows">
+      {
+        byCollaborator.map((g) => {
+          const isRepeat = g.items.length > 1;
+          const rowYears = Array.from(
+            new Set(g.items.map((c) => parseDate(c.date).year)),
+          );
+          // Single lowercased search target combining collaborator, event,
+          // and date text so a query like "ring" matches the name, "may"
+          // matches month strings, "2025" matches the year, etc.
+          const searchText = [
+            g.collaborator,
+            ...g.items.map((c) => c.event ?? ""),
+            ...g.items.map((c) => formatDateShort(c.date)),
+            ...g.items.map((c) => String(parseDate(c.date).year)),
+          ]
+            .join(" ")
+            .toLowerCase();
+          return (
+            <li
+              class="collab-row"
+              data-collab-row="true"
+              data-search={searchText}
+              data-years={rowYears.join(" ")}
+              data-name={g.collaborator.toLowerCase()}
+              data-count={g.items.length}
+            >
+              <span class={`collab-row-name${isRepeat ? " repeat" : ""}`}>
+                {g.collaborator}
+                {isRepeat && (
+                  <span class="repeat-badge" aria-label={`${g.items.length} collaborations`}>
+                    ×{g.items.length}
+                  </span>
+                )}
+              </span>
+              <span class="collab-row-activities">
+                {g.items.map((c, i) => (
+                  <>
+                    {i > 0 && <span class="row-sep" aria-hidden="true"> | </span>}
+                    {c.url && !c.event ? (
+                      <a
+                        class="activity-date"
+                        href={c.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {formatDateShort(c.date)}
+                      </a>
+                    ) : (
+                      <span class="activity-date">{formatDateShort(c.date)}</span>
+                    )}
+                    {c.event && " "}
+                    {c.event && (
+                      c.url ? (
+                        <a
+                          class="activity-event"
+                          href={c.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          ({c.event})
+                        </a>
+                      ) : (
+                        <span class="activity-event">({c.event})</span>
+                      )
+                    )}
+                  </>
+                ))}
+              </span>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+  // Segmented-tab toggle: swaps between the two view panels. Persists the
+  // active view to sessionStorage so a tab refresh keeps the user's choice.
+  (function () {
+    var tabs = document.querySelectorAll("[data-view-tab]");
+    var panels = document.querySelectorAll("[data-view-panel]");
+    if (tabs.length === 0 || panels.length === 0) return;
+
+    function show(key) {
+      tabs.forEach(function (t) {
+        var active = t.getAttribute("data-view-tab") === key;
+        t.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      panels.forEach(function (p) {
+        var active = p.getAttribute("data-view-panel") === key;
+        if (active) p.removeAttribute("hidden");
+        else p.setAttribute("hidden", "");
+      });
+      try { sessionStorage.setItem("collabView", key); } catch (e) {}
+    }
+
+    var initial = "date";
+    try {
+      var saved = sessionStorage.getItem("collabView");
+      if (saved === "date" || saved === "collab") initial = saved;
+    } catch (e) {}
+    show(initial);
+
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () {
+        show(t.getAttribute("data-view-tab"));
+      });
+    });
+  })();
+
+  // Filter rows in the "By collaborator" view by name search + year chip.
+  // Each row carries `data-name` and `data-years` (space-separated) for
+  // matching. Hidden rows use the native `hidden` attribute. The visible
+  // last-row gets `data-last-visible` so CSS can suppress its bottom
+  // border without disturbing the rest of the list.
+  (function () {
+    var search = document.querySelector("[data-collab-search]");
+    var chips = document.querySelectorAll("[data-year-chip]");
+    var sortBtns = document.querySelectorAll("[data-sort]");
+    var rowsList = document.querySelector(".collab-rows");
+    var empty = document.querySelector("[data-empty-state]");
+    if (!search || !rowsList) return;
+
+    var state = { q: "", year: "all", sort: "name" };
+
+    function reorder() {
+      var arr = Array.prototype.slice.call(
+        rowsList.querySelectorAll("[data-collab-row]"),
+      );
+      if (state.sort === "count") {
+        arr.sort(function (a, b) {
+          var ca = parseInt(a.getAttribute("data-count") || "0", 10);
+          var cb = parseInt(b.getAttribute("data-count") || "0", 10);
+          if (cb !== ca) return cb - ca;
+          // Tie-breaker: alphabetical so order stays predictable when
+          // multiple collaborators have the same count.
+          return (a.getAttribute("data-name") || "").localeCompare(
+            b.getAttribute("data-name") || "",
+          );
+        });
+      } else {
+        arr.sort(function (a, b) {
+          return (a.getAttribute("data-name") || "").localeCompare(
+            b.getAttribute("data-name") || "",
+          );
+        });
+      }
+      arr.forEach(function (row) {
+        rowsList.appendChild(row);
+      });
+    }
+
+    function apply() {
+      var q = state.q.toLowerCase().trim();
+      var lastVisible = null;
+      var anyVisible = false;
+      // Iterate the live DOM so the "last visible" marker tracks the
+      // current visual order (which can change after a sort).
+      var liveRows = rowsList.querySelectorAll("[data-collab-row]");
+      for (var i = 0; i < liveRows.length; i++) {
+        var row = liveRows[i];
+        var haystack = row.getAttribute("data-search") || "";
+        var years = (row.getAttribute("data-years") || "").split(" ");
+        var matchQ = !q || haystack.indexOf(q) >= 0;
+        var matchY = state.year === "all" || years.indexOf(state.year) >= 0;
+        var visible = matchQ && matchY;
+        if (visible) row.removeAttribute("hidden");
+        else row.setAttribute("hidden", "");
+        row.removeAttribute("data-last-visible");
+        if (visible) {
+          lastVisible = row;
+          anyVisible = true;
+        }
+      }
+      if (lastVisible) lastVisible.setAttribute("data-last-visible", "true");
+      if (empty) {
+        if (anyVisible) empty.setAttribute("hidden", "");
+        else empty.removeAttribute("hidden");
+      }
+    }
+
+    search.addEventListener("input", function () {
+      state.q = search.value;
+      apply();
+    });
+
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        state.year = chip.getAttribute("data-year-chip") || "all";
+        chips.forEach(function (c) {
+          c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+        });
+        apply();
+      });
+    });
+
+    sortBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.sort = btn.getAttribute("data-sort") || "name";
+        sortBtns.forEach(function (b) {
+          b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+        });
+        reorder();
+        apply();
+      });
+    });
+  })();
+</script>
+
+<style>
+  .legend {
+    color: var(--fg-muted);
+    font-size: 0.95rem;
+    margin: 0 0 1.5rem;
+  }
+  .legend strong {
+    color: var(--fg);
+  }
+
+  /* Segmented control for switching between "By date" and "By collaborator". */
+  .view-tabs {
+    display: inline-flex;
+    gap: 0;
+    padding: 4px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    margin-bottom: 2rem;
+  }
+  .view-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-muted);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.55rem 1.25rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .view-tab:hover {
+    color: var(--fg);
+  }
+  .view-tab[aria-selected="true"] {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* ---- "By date" view ---- */
+
+  .year-block {
+    margin-bottom: 1.5rem;
+  }
+  .year-block:last-child {
+    margin-bottom: 0;
+  }
+  /* The year header doubles as the <details> summary so the whole year
+     can be collapsed. Custom marker (chevron) replaces the browser default. */
+  .year-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid var(--year-accent, var(--border));
+    cursor: pointer;
+    list-style: none;
+  }
+  .year-head::-webkit-details-marker {
+    display: none;
+  }
+  .year-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    margin: 0;
+    color: var(--year-accent, var(--fg));
+    line-height: 1;
+  }
+  .year-count {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 1.05rem;
+    color: var(--fg-muted);
+  }
+  .year-chevron {
+    margin-left: auto;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--year-accent, var(--fg-muted));
+    transition: transform 0.2s ease;
+    transform: rotate(-90deg);
+  }
+  .year-block[open] .year-chevron {
+    transform: rotate(0deg);
+  }
+  /* Tiny breathing room between header and content when expanded. */
+  .year-block[open] .year-head {
+    margin-bottom: 1.25rem;
+  }
+
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem 2rem;
+  }
+  .month-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+  }
+  .month-block {
+    break-inside: avoid;
+  }
+  .month-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    margin: 0 0 0.5rem;
+  }
+
+  /* ---- "By collaborator" view ---- */
+
+  /* Toolbar: search input + year-filter chips above the list. */
+  .collab-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  .collab-search {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 0.55rem 0.9rem;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    transition: border-color 0.15s ease;
+  }
+  .collab-search::placeholder {
+    color: var(--fg-muted);
+  }
+  .collab-search:focus {
+    outline: 0;
+    border-color: var(--fg);
+  }
+
+  .year-chips,
+  .sort-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .year-chip {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--chip-accent, var(--fg-muted));
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .year-chip:hover {
+    border-color: var(--chip-accent, var(--fg));
+  }
+  .year-chip[aria-pressed="true"] {
+    background: var(--chip-accent, var(--fg));
+    color: var(--bg);
+    border-color: var(--chip-accent, var(--fg));
+  }
+  /* Unique-collaborator count reveals only when the chip is active —
+     hides clutter when many chips are present, and gives a useful
+     preview of how many results the filter will produce. */
+  .chip-count {
+    display: none;
+    margin-left: 0.25rem;
+    opacity: 0.9;
+  }
+  .year-chip[aria-pressed="true"] .chip-count {
+    display: inline;
+  }
+
+  .empty-state {
+    color: var(--fg-muted);
+    font-style: italic;
+    padding: 1rem 0;
+  }
+
+  /* Each collaborator gets a single row: name on the left, all their
+     activities (event + date) on the right, separated by "|". Long rows
+     wrap the right side onto a second visual line, still right-aligned. */
+  .collab-rows {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .collab-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    transition: background 0.15s ease;
+  }
+  /* `display: flex` above outranks the browser default `[hidden] { display:
+     none }` on specificity, so we re-assert hiding explicitly for rows. */
+  .collab-row[hidden] {
+    display: none;
+  }
+  .collab-row:hover {
+    background: var(--bg-elev);
+  }
+  .collab-row:last-child,
+  .collab-row[data-last-visible="true"] {
+    border-bottom: 0;
+  }
+  .collab-row-name {
+    flex: 0 0 auto;
+    font-family: var(--font-display);
+    color: var(--fg);
+  }
+  .collab-row-name.repeat {
+    font-weight: 700;
+  }
+  /* "×N" badge on repeat collaborators — quick at-a-glance count beyond
+     the bold name signal. */
+  .repeat-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--fg-muted);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    vertical-align: 2px;
+  }
+  .collab-row:hover .repeat-badge {
+    background: var(--bg);
+  }
+  .collab-row-activities {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+    color: var(--fg-muted);
+  }
+  .activity-event {
+    color: var(--fg);
+  }
+  a.activity-event {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a.activity-event:hover {
+    color: var(--link-hover);
+  }
+  /* When an entry has a URL but no event name, the date itself becomes
+     the clickable affordance. */
+  a.activity-date {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a.activity-date:hover {
+    color: var(--link-hover);
+  }
+  .row-sep {
+    margin: 0 0.15rem;
+    color: var(--border);
+  }
+
+  /* ---- Shared list item anatomy ---- */
+
+  .collab-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .collab-item {
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.4;
+  }
+  .collab-item:last-child {
+    border-bottom: 0;
+  }
+  .collab-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.95rem;
+  }
+  .collab-name {
+    color: var(--fg);
+  }
+  .collab-name.repeat {
+    font-weight: 700;
+  }
+  .collab-sep {
+    color: var(--fg-muted);
+  }
+  .collab-event {
+    color: var(--fg);
+  }
+  .collab-event.muted {
+    color: var(--fg-muted);
+  }
+  .collab-event:not(.muted) {
+    color: var(--fg);
+  }
+  a.collab-event {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a.collab-event:hover {
+    color: var(--link-hover);
+  }
+  .collab-meta {
+    margin-top: 0.15rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.05rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+  }
+  .note {
+    font-style: italic;
+  }
+
+  /* ---- Responsive ---- */
+
+  @media (max-width: 600px) {
+    .month-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    .year-title {
+      font-size: 2rem;
+    }
+    .year-count {
+      font-size: 0.95rem;
+    }
+    /* Collaborator rows: stack the name above its activities on narrow
+       screens so neither side gets cramped. */
+    .collab-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.2rem;
+    }
+    .collab-row-activities {
+      text-align: left;
+    }
+  }
+</style>

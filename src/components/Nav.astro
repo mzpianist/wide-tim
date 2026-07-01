@@ -1,0 +1,483 @@
+---
+import { nav, site } from "../content/site";
+
+const pathname = Astro.url.pathname;
+function isActive(href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
+---
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="brand" href="/">{site.title}</a>
+    <div class="nav-right">
+    <nav class="site-nav" aria-label="Primary">
+      <ul class="nav-list">
+        {
+          nav.map((item) => (
+            <li class={`nav-item ${item.children ? "has-children" : ""}`}>
+              <a
+                href={item.href}
+                class={isActive(item.href) ? "active" : ""}
+                target={item.external ? "_blank" : undefined}
+                rel={item.external ? "noopener noreferrer" : undefined}
+              >
+                {item.label}
+              </a>
+              {item.children && (
+                <ul class="submenu">
+                  {item.children.map((child) => (
+                    <li>
+                      <a
+                        href={child.href}
+                        class={isActive(child.href) ? "active" : ""}
+                        target={child.external ? "_blank" : undefined}
+                        rel={child.external ? "noopener noreferrer" : undefined}
+                      >
+                        {child.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <button
+      id="theme-toggle"
+      type="button"
+      class="theme-toggle"
+      aria-label="Cycle color theme"
+      title="Theme"
+    >
+      <svg
+        class="icon icon-auto"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M12 8a2.83 2.83 0 0 1 4 4"></path>
+        <path d="M12 2v2"></path>
+        <path d="M12 20v2"></path>
+        <path d="m4.9 4.9 1.4 1.4"></path>
+        <path d="m17.7 17.7 1.4 1.4"></path>
+        <path d="M2 12h2"></path>
+        <path d="M20 12h2"></path>
+        <path d="m6.3 17.7-1.4 1.4"></path>
+        <path d="m19.1 4.9-1.4 1.4"></path>
+        <path d="M22 22 2 2"></path>
+      </svg>
+      <svg
+        class="icon icon-light"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2"></path>
+        <path d="M12 20v2"></path>
+        <path d="m4.93 4.93 1.41 1.41"></path>
+        <path d="m17.66 17.66 1.41 1.41"></path>
+        <path d="M2 12h2"></path>
+        <path d="M20 12h2"></path>
+        <path d="m6.34 17.66-1.41 1.41"></path>
+        <path d="m19.07 4.93-1.41 1.41"></path>
+      </svg>
+      <svg
+        class="icon icon-dark"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Theme controller: Auto (sunrise/sunset) | Light | Dark.
+  // Cycles on click. Auto computes sunrise/sunset locally from the visitor's
+  // approximate lat/lng (IP-based, cached 7 days). Manual choice overrides.
+  const CHOICE_KEY = "themeChoice";
+  const SUN_CACHE_KEY = "sunCache";
+  const LOC_CACHE_KEY = "locCache";
+  const LOC_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  const FALLBACK_LOC = { lat: 40.7128, lng: -74.006 }; // NYC
+
+  const TITLES = {
+    auto: "Theme: Auto (sunrise/sunset). Click for Light.",
+    light: "Theme: Light. Click for Dark.",
+    dark: "Theme: Dark. Click for Auto.",
+  };
+
+  let autoTimer = null;
+
+  function getChoice() {
+    try {
+      return localStorage.getItem(CHOICE_KEY) || "auto";
+    } catch {
+      return "auto";
+    }
+  }
+
+  function setChoice(choice) {
+    try {
+      if (choice === "auto") localStorage.removeItem(CHOICE_KEY);
+      else localStorage.setItem(CHOICE_KEY, choice);
+    } catch {}
+    document.documentElement.dataset.themeChoice = choice;
+    const btn = document.getElementById("theme-toggle");
+    if (btn) btn.title = TITLES[choice];
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+  }
+
+  // NOAA solar position algorithm — returns Date objects in local TZ.
+  function computeSunTimes(date, lat, lng) {
+    const rad = Math.PI / 180;
+    const yearStart = new Date(date.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((date - yearStart) / 86400000);
+    const fy = ((2 * Math.PI) / 365) * (dayOfYear - 1);
+    const eqTime =
+      229.18 *
+      (0.000075 +
+        0.001868 * Math.cos(fy) -
+        0.032077 * Math.sin(fy) -
+        0.014615 * Math.cos(2 * fy) -
+        0.040849 * Math.sin(2 * fy));
+    const decl =
+      0.006918 -
+      0.399912 * Math.cos(fy) +
+      0.070257 * Math.sin(fy) -
+      0.006758 * Math.cos(2 * fy) +
+      0.000907 * Math.sin(2 * fy) -
+      0.002697 * Math.cos(3 * fy) +
+      0.00148 * Math.sin(3 * fy);
+    const latRad = lat * rad;
+    const cosH =
+      (Math.cos(90.833 * rad) - Math.sin(latRad) * Math.sin(decl)) /
+      (Math.cos(latRad) * Math.cos(decl));
+    if (cosH > 1) return { sunrise: null, sunset: null, polarNight: true };
+    if (cosH < -1) return { sunrise: null, sunset: null, polarDay: true };
+    const H = Math.acos(cosH) / rad;
+    const sunriseUTCmin = 720 - 4 * (lng + H) - eqTime;
+    const sunsetUTCmin = 720 - 4 * (lng - H) - eqTime;
+    const baseUTC = Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate()
+    );
+    return {
+      sunrise: new Date(baseUTC + sunriseUTCmin * 60000),
+      sunset: new Date(baseUTC + sunsetUTCmin * 60000),
+    };
+  }
+
+  async function getLocation() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(LOC_CACHE_KEY) || "null");
+      if (cached && cached.t && Date.now() - cached.t < LOC_TTL_MS) {
+        return { lat: cached.lat, lng: cached.lng };
+      }
+    } catch {}
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (res.ok) {
+        const data = await res.json();
+        if (
+          typeof data.latitude === "number" &&
+          typeof data.longitude === "number"
+        ) {
+          try {
+            localStorage.setItem(
+              LOC_CACHE_KEY,
+              JSON.stringify({
+                lat: data.latitude,
+                lng: data.longitude,
+                t: Date.now(),
+              })
+            );
+          } catch {}
+          return { lat: data.latitude, lng: data.longitude };
+        }
+      }
+    } catch {}
+    return FALLBACK_LOC;
+  }
+
+  async function refreshAuto() {
+    clearTimeout(autoTimer);
+    if (getChoice() !== "auto") return;
+
+    const loc = await getLocation();
+    const now = new Date();
+    const today = computeSunTimes(now, loc.lat, loc.lng);
+    const tomorrow = computeSunTimes(
+      new Date(now.getTime() + 86400000),
+      loc.lat,
+      loc.lng
+    );
+
+    let theme, nextEventMs;
+    if (today.polarDay) {
+      theme = "light";
+      nextEventMs = now.getTime() + 6 * 3600 * 1000;
+    } else if (today.polarNight) {
+      theme = "dark";
+      nextEventMs = now.getTime() + 6 * 3600 * 1000;
+    } else {
+      const nowMs = now.getTime();
+      if (nowMs < today.sunrise.getTime()) {
+        theme = "dark";
+        nextEventMs = today.sunrise.getTime();
+      } else if (nowMs < today.sunset.getTime()) {
+        theme = "light";
+        nextEventMs = today.sunset.getTime();
+      } else {
+        theme = "dark";
+        nextEventMs = tomorrow.sunrise
+          ? tomorrow.sunrise.getTime()
+          : nowMs + 6 * 3600 * 1000;
+      }
+
+      try {
+        localStorage.setItem(
+          SUN_CACHE_KEY,
+          JSON.stringify({
+            sunrise: today.sunrise.getTime(),
+            sunset: today.sunset.getTime(),
+          })
+        );
+      } catch {}
+    }
+
+    applyTheme(theme);
+
+    // Re-check at the next transition (cap at 6h so we re-sync if the tab
+    // sleeps or location/sun cache goes stale).
+    const delay = Math.min(
+      Math.max(nextEventMs - Date.now() + 1000, 60000),
+      6 * 3600 * 1000
+    );
+    autoTimer = setTimeout(refreshAuto, delay);
+  }
+
+  function init() {
+    const btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    btn.title = TITLES[getChoice()];
+
+    btn.addEventListener("click", () => {
+      const current = getChoice();
+      const next =
+        current === "auto" ? "light" : current === "light" ? "dark" : "auto";
+      setChoice(next);
+      if (next === "auto") {
+        refreshAuto();
+      } else {
+        clearTimeout(autoTimer);
+        applyTheme(next);
+      }
+    });
+
+    if (getChoice() === "auto") refreshAuto();
+  }
+
+  init();
+</script>
+
+<style>
+  .site-header {
+    /* Full-width container so the background bar spans the viewport.
+       Inner content is centered to --container width below. */
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+  }
+  .site-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 1.25rem 1.5rem;
+    max-width: var(--container);
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .brand {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--fg);
+  }
+
+  .site-nav {
+    display: flex;
+  }
+
+  .nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .nav-item {
+    position: relative;
+  }
+
+  .nav-item > a {
+    text-decoration: none;
+    color: var(--fg);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid transparent;
+  }
+  .nav-item > a:hover,
+  .nav-item > a.active {
+    border-bottom-color: var(--fg);
+    color: var(--fg);
+  }
+
+  .submenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.5rem 0;
+    list-style: none;
+    margin: 0.5rem 0 0;
+    min-width: 220px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+    z-index: 20;
+  }
+
+  .nav-item.has-children:hover .submenu,
+  .nav-item.has-children:focus-within .submenu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .submenu li a {
+    display: block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: var(--fg);
+    font-size: 0.9rem;
+  }
+  .submenu li a:hover,
+  .submenu li a.active {
+    background: var(--bg-hover);
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--fg);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .theme-toggle:hover {
+    border-color: var(--fg);
+    background: var(--bg-hover);
+    color: var(--link-hover);
+  }
+  .theme-toggle .icon {
+    display: none;
+  }
+  :root[data-theme-choice="auto"] .theme-toggle .icon-auto,
+  :root[data-theme-choice="light"] .theme-toggle .icon-light,
+  :root[data-theme-choice="dark"] .theme-toggle .icon-dark {
+    display: block;
+  }
+  /* Fallback if data-theme-choice hasn't been set yet (no JS / first paint
+     before the inline script writes the attribute). */
+  :root:not([data-theme-choice]) .theme-toggle .icon-auto {
+    display: block;
+  }
+
+  @media (max-width: 720px) {
+    .site-header-inner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .nav-right {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .nav-list {
+      gap: 0.75rem 1rem;
+    }
+    /* On small screens, show submenu items inline below the parent */
+    .submenu {
+      position: static;
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      border: 0;
+      background: transparent;
+      padding: 0 0 0 1rem;
+      min-width: 0;
+      margin: 0.25rem 0 0;
+    }
+    .submenu li a {
+      padding: 0.2rem 0;
+      font-size: 0.85rem;
+      color: var(--fg-muted);
+    }
+  }
+</style>

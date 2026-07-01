@@ -1,0 +1,190 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PlaceholderImage from "../../components/PlaceholderImage.astro";
+import { projects } from "../../content/projects";
+
+// Cycled per-card accent colors — same palette as the home page quick-links
+// so the two pages feel like they belong together.
+const palette = [
+  "#f08066",
+  "#4dbeb0",
+  "#e8b441",
+  "#a896d8",
+  "#5fb3e0",
+  "#ec84a3",
+];
+
+// Image-having projects render first; image-less projects fall to the end
+// but still get the full colorful card treatment (just without the photo).
+const sortedProjects = [
+  ...projects.filter((p) => p.image && p.image.trim().length > 0),
+  ...projects.filter((p) => !p.image || p.image.trim().length === 0),
+];
+---
+
+<BaseLayout title="Selected Projects">
+  <h1>Selected Projects</h1>
+
+  <ul class="project-grid">
+    {
+      sortedProjects.map((p, i) => {
+        const accent = palette[i % palette.length];
+        const hasImage = !!(p.image && p.image.trim().length > 0);
+        const Tag = p.url ? "a" : "article";
+        return (
+          <li>
+            <Tag
+              class={`project-card${p.url ? " project-card-link" : ""}${!hasImage ? " project-card-noimage" : ""}`}
+              href={p.url}
+              target={p.url ? "_blank" : undefined}
+              rel={p.url ? "noopener noreferrer" : undefined}
+              style={`--card-accent: ${accent}`}
+            >
+              {hasImage && (
+                <div class="card-thumb">
+                  <PlaceholderImage
+                    src={p.image}
+                    alt={p.imageAlt ?? p.name}
+                    label={`${p.name} — image placeholder`}
+                    aspectRatio="16 / 9"
+                  />
+                </div>
+              )}
+              <div class="card-body">
+                <h3 class="card-title">{p.name}</h3>
+                <div class="meta">{p.date}</div>
+                {p.description && <p class="desc">{p.description}</p>}
+                {p.links && p.links.length > 0 && (
+                  <div class="extra-links">
+                    {p.links.map((l) => (
+                      <a
+                        href={l.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onclick="event.stopPropagation()"
+                      >
+                        {l.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Tag>
+          </li>
+        );
+      })
+    }
+  </ul>
+</BaseLayout>
+
+<style>
+  .project-grid {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .project-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+    text-decoration: none;
+    color: var(--fg);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem;
+    overflow: hidden;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  /* 3px accent stripe along the top — matches the home page cards. */
+  .project-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--border));
+  }
+
+  .project-card-link:hover {
+    border-color: var(--card-accent, var(--fg));
+    background: var(--bg-hover);
+    color: var(--fg);
+  }
+  .project-card-link:hover .card-title {
+    color: var(--card-accent, var(--fg));
+  }
+
+  .card-thumb {
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .card-thumb :global(img),
+  .card-thumb :global(.placeholder-img) {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+    transition: color 0.15s ease;
+  }
+  .meta {
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  .desc {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  /* No-image cards: a touch more interior padding so they don't feel
+     vertically squeezed without the image to anchor them. */
+  .project-card-noimage {
+    padding: 1.1rem 1rem;
+  }
+
+  /* Supplementary links row — shows beneath the description for any
+     project that has a `links` array. */
+  .extra-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+  }
+  .extra-links a {
+    color: var(--fg-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .extra-links a:hover {
+    color: var(--link-hover);
+  }
+
+  @media (max-width: 600px) {
+    .project-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+</style>

@@ -1,0 +1,178 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { contact } from "../content/contact";
+
+// Cycled per-card accent colors — same palette as the home page so the
+// contact page feels like part of the same family.
+const palette = [
+  "#f08066",
+  "#4dbeb0",
+  "#e8b441",
+  "#a896d8",
+  "#5fb3e0",
+  "#ec84a3",
+];
+---
+
+<BaseLayout title={contact.heading}>
+  <h1>{contact.heading}</h1>
+  {contact.intro && <p class="intro">{contact.intro}</p>}
+
+  {
+    contact.collabCallout && (
+      <aside class="collab-callout">
+        <span class="collab-tag">Collab inquiries</span>
+        <p>
+          {contact.collabCallout.lead}{" "}
+          <a
+            href={contact.collabCallout.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {contact.collabCallout.linkLabel}
+          </a>{" "}
+          {contact.collabCallout.trail}
+        </p>
+      </aside>
+    )
+  }
+
+  <ul class="contact-grid">
+    {
+      contact.methods.map((m, i) => {
+        const accent = palette[i % palette.length];
+        const Tag = m.url ? "a" : "div";
+        return (
+          <li>
+            <Tag
+              class={`contact-card${m.url ? " contact-card-link" : ""}`}
+              href={m.url}
+              target={m.url ? "_blank" : undefined}
+              rel={m.url ? "noopener noreferrer" : undefined}
+              style={`--card-accent: ${accent}`}
+            >
+              <span class="contact-label">{m.label}</span>
+              <span class="contact-value">{m.value}</span>
+            </Tag>
+          </li>
+        );
+      })
+    }
+  </ul>
+</BaseLayout>
+
+<style>
+  .intro {
+    color: var(--fg-muted);
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .collab-callout {
+    position: relative;
+    border: 1px solid var(--border);
+    border-left: 4px solid #e8b441;
+    background: var(--bg-elev);
+    border-radius: 6px;
+    padding: 0.9rem 1.1rem;
+    margin: 0 0 2rem;
+  }
+  .collab-callout p {
+    margin: 0;
+    font-size: 0.98rem;
+    line-height: 1.55;
+  }
+  .collab-tag {
+    display: inline-block;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+    color: #e8b441;
+    margin-bottom: 0.35rem;
+  }
+
+  .contact-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+
+  .contact-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 11rem;
+    padding: 1.5rem 1rem;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--fg);
+    text-decoration: none;
+    overflow: hidden;
+    transition: background 0.2s ease, border-color 0.2s ease,
+      color 0.2s ease, transform 0.2s ease;
+  }
+
+  /* 3px accent stripe across the top — matches the rest of the site. */
+  .contact-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--border));
+  }
+
+  .contact-label {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+    transition: color 0.2s ease;
+  }
+
+  .contact-value {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+    word-break: break-word;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* On hover, the whole card fills with its accent — same playful pop the
+     home page contact bar gets. Inactive (no-url) cards stay quiet. */
+  .contact-card-link:hover {
+    background: var(--card-accent);
+    border-color: var(--card-accent);
+    color: #1a1a1a;
+    transform: translateY(-2px);
+  }
+  .contact-card-link:hover .contact-label {
+    color: #1a1a1a;
+  }
+
+  @media (max-width: 720px) {
+    .contact-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+  }
+  @media (max-width: 480px) {
+    .contact-grid {
+      grid-template-columns: 1fr;
+    }
+    .contact-card {
+      min-height: 8rem;
+    }
+  }
+</style>

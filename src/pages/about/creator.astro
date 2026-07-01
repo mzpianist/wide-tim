@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PlaceholderImage from "../../components/PlaceholderImage.astro";
+import { aboutCreator } from "../../content/aboutCreator";
+---
+
+<BaseLayout title={aboutCreator.heading}>
+  <h1>{aboutCreator.heading}</h1>
+
+  <PlaceholderImage
+    src={aboutCreator.image}
+    alt={aboutCreator.imageAlt}
+    label="About the Creator — image placeholder"
+    aspectRatio="4 / 3"
+  />
+
+  <div style="margin-top: 1.5rem;">
+    <h2 style="margin-bottom: 0.25rem;">{aboutCreator.name}</h2>
+    <ul class="facts">
+      {aboutCreator.facts.map((f) => <li>{f}</li>)}
+      {
+        aboutCreator.links.map((l) => (
+          <li>
+            {l.label}:{" "}
+            <a href={l.url} target="_blank" rel="noopener noreferrer">
+              {l.handle}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    {aboutCreator.paragraphs.map((p) => <p set:html={p} />)}
+  </div>
+</BaseLayout>
+
+<style>
+  .facts {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+  }
+  .facts li {
+    padding: 0.15rem 0;
+  }
+</style>

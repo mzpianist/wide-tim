@@ -1,0 +1,145 @@
+/* =============================================================================
+   GLOBAL STYLES
+   All the visual "theme" of the site lives here — colors, fonts, spacing.
+   Edit these to change the look site-wide.
+   ============================================================================= */
+
+:root,
+:root[data-theme="dark"] {
+  --bg: #0d0d0d;
+  --bg-elev: #1a1a1a;
+  --bg-hover: #222;
+  --fg: #f4efe6;
+  --fg-muted: #a8a29a;
+  --accent: #f4efe6;
+  --border: #2a2a2a;
+  --link: #f4efe6;
+  --link-hover: #ffd166;
+
+  --font-body: "Open Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Oswald", "Open Sans", system-ui, sans-serif;
+
+  --container: 1000px;
+}
+
+:root[data-theme="light"] {
+  --bg: #faf7f0;
+  --bg-elev: #ffffff;
+  --bg-hover: #f0ebe0;
+  --fg: #1a1a1a;
+  --fg-muted: #6b665f;
+  --accent: #1a1a1a;
+  --border: #e2ddd2;
+  --link: #1a1a1a;
+  --link-hover: #b8860b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+h1 {
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+}
+h2 {
+  font-size: 1.75rem;
+  margin-top: 2rem;
+}
+h3 {
+  font-size: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: color 0.15s ease;
+}
+a:hover {
+  color: var(--link-hover);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Placeholder box shown in place of missing images */
+.placeholder-img {
+  background: var(--bg-elev);
+  border: 1px dashed var(--border);
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+/* Simple responsive tweaks */
+@media (max-width: 600px) {
+  main {
+    padding: 1.5rem 1rem 3rem;
+  }
+}

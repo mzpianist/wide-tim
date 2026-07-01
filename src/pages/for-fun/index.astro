@@ -1,0 +1,130 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PlaceholderImage from "../../components/PlaceholderImage.astro";
+import { funItems } from "../../content/fun";
+
+// Cycled per-card accent colors — shared with the home, projects, and
+// contact pages so everything feels like one site.
+const palette = [
+  "#f08066",
+  "#4dbeb0",
+  "#e8b441",
+  "#a896d8",
+  "#5fb3e0",
+  "#ec84a3",
+];
+---
+
+<BaseLayout title="For Fun">
+  <h1>For Fun</h1>
+  <p class="muted">Little experiments, games, and videos.</p>
+
+  <ul class="fun-grid">
+    {
+      funItems.map((item, i) => {
+        const accent = palette[i % palette.length];
+        return (
+          <li>
+            <a
+              class="fun-card"
+              href={item.href}
+              target={item.external ? "_blank" : undefined}
+              rel={item.external ? "noopener noreferrer" : undefined}
+              style={`--card-accent: ${accent}`}
+            >
+              <div class="card-thumb">
+                <PlaceholderImage
+                  src={item.image}
+                  alt={item.imageAlt ?? item.name}
+                  label={`${item.name} — image placeholder`}
+                  aspectRatio="16 / 9"
+                />
+              </div>
+              <div class="card-body">
+                <h3 class="card-title">{item.name}</h3>
+                <p class="desc">{item.description}</p>
+              </div>
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+</BaseLayout>
+
+<style>
+  .fun-grid {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .fun-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+    text-decoration: none;
+    color: var(--fg);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem;
+    overflow: hidden;
+    transition: border-color 0.15s ease, background 0.15s ease,
+      transform 0.15s ease;
+  }
+  .fun-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--border));
+  }
+  .fun-card:hover {
+    border-color: var(--card-accent, var(--fg));
+    background: var(--bg-hover);
+    color: var(--fg);
+    transform: translateY(-2px);
+  }
+  .fun-card:hover .card-title {
+    color: var(--card-accent, var(--fg));
+  }
+
+  .card-thumb {
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .card-thumb :global(img),
+  .card-thumb :global(.placeholder-img) {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+    transition: color 0.15s ease;
+  }
+  .desc {
+    margin: 0.25rem 0 0;
+    font-size: 0.95rem;
+    color: var(--fg-muted);
+  }
+</style>

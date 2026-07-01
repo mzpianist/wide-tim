@@ -1,0 +1,66 @@
+---
+import { site } from "../content/site";
+import { socials } from "../content/socials";
+
+const year = new Date().getFullYear();
+const copyrightRange =
+  site.copyrightStart === year
+    ? `${year}`
+    : `${site.copyrightStart}-${year}`;
+
+// Short labels for the footer (full names like "Instagram" feel heavy
+// in a small footer; "IG: @wide_tim" reads faster). Falls back to the
+// full platform name if no abbreviation is defined.
+const platformAbbr: Record<string, string> = {
+  Instagram: "IG",
+  TikTok: "TT",
+  YouTube: "YT",
+  Twitter: "X",
+};
+---
+
+<footer class="site-footer">
+  <div class="inner">
+    <div class="socials">
+      {
+        socials.map((s) => (
+          <a href={s.url} target="_blank" rel="noopener noreferrer">
+            {platformAbbr[s.platform] ?? s.platform}: {s.handle}
+          </a>
+        ))
+      }
+    </div>
+    <div class="copyright">
+      © {copyrightRange} {site.copyrightName}
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem;
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+  }
+  .inner {
+    max-width: var(--container);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .socials {
+    display: flex;
+    gap: 1rem;
+  }
+  .socials a {
+    color: var(--fg-muted);
+    text-decoration: none;
+  }
+  .socials a:hover {
+    color: var(--fg);
+  }
+</style>

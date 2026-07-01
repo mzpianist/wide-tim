@@ -1,0 +1,57 @@
+---
+// Renders an Instagram post/reel as a full embed (account, caption, date, carousel arrows).
+// Usage: <InstagramEmbed url="https://www.instagram.com/p/XYZ/" />
+// Uses Instagram's public embed.js; no API key needed. Only works for public posts.
+
+interface Props {
+  url: string;
+  captioned?: boolean;
+  maxWidth?: number;
+}
+
+const { url, captioned = true, maxWidth = 540 } = Astro.props;
+
+// Normalize: strip query/hash, force https + www, ensure trailing slash.
+function normalize(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.search = "";
+    u.hash = "";
+    if (u.hostname === "instagram.com") u.hostname = "www.instagram.com";
+    if (!u.pathname.endsWith("/")) u.pathname = u.pathname + "/";
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
+const permalink = normalize(url);
+---
+
+<blockquote
+  class="instagram-media"
+  data-instgrm-permalink={permalink}
+  data-instgrm-version="14"
+  data-instgrm-captioned={captioned ? "" : undefined}
+  style={`max-width: ${maxWidth}px; min-width: 326px; width: 100%; margin: 0 auto;`}
+>
+  <a href={permalink} target="_blank" rel="noopener noreferrer">View on Instagram</a>
+</blockquote>
+
+<script is:inline>
+  // Load embed.js once per page. On subsequent component renders, re-run process()
+  // so newly added blockquotes get hydrated.
+  (function () {
+    var existing = document.querySelector(
+      'script[src="https://www.instagram.com/embed.js"]',
+    );
+    if (!existing) {
+      var s = document.createElement("script");
+      s.async = true;
+      s.src = "https://www.instagram.com/embed.js";
+      document.body.appendChild(s);
+    } else if (window.instgrm && window.instgrm.Embeds) {
+      window.instgrm.Embeds.process();
+    }
+  })();
+</script>

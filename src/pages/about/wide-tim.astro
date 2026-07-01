@@ -1,0 +1,392 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import InstagramEmbed from "../../components/InstagramEmbed.astro";
+import { aboutTim } from "../../content/aboutTim";
+
+// Accent palette shared with the rest of the site. Cycled across quote cards
+// so each press source gets its own color.
+const palette = [
+  "#f08066",
+  "#4dbeb0",
+  "#e8b441",
+  "#a896d8",
+  "#5fb3e0",
+  "#ec84a3",
+];
+---
+
+<BaseLayout title={aboutTim.heading}>
+  <h1>{aboutTim.heading}</h1>
+
+  <section class="intro">
+    {aboutTim.introParagraphs.map((p) => <p set:html={p} />)}
+  </section>
+
+  <hr class="section-divider" />
+
+  <section class="about-split">
+    <div class="about-copy">
+      <h2>{aboutTim.aboutHeading}</h2>
+      <p class="pull-quote">{aboutTim.aboutPullQuote}</p>
+      {aboutTim.aboutParagraphs.map((p) => <p set:html={p} />)}
+    </div>
+    <div class="about-image">
+      <InstagramEmbed url="https://www.instagram.com/p/CLPr1dgnLd5/" captioned={false} />
+    </div>
+  </section>
+
+  <hr class="section-divider" />
+
+  <section>
+    <h2>{aboutTim.widerHeading}</h2>
+    <p set:html={aboutTim.widerLeadParagraph} />
+  </section>
+
+  <hr class="section-divider" />
+
+  <section>
+    <h2>{aboutTim.quotesHeading}</h2>
+    <div class="quote-grid">
+      {
+        aboutTim.quotes.map((q, i) => {
+          const accent = palette[i % palette.length];
+          return (
+            <figure class="quote-card" style={`--card-accent: ${accent}`}>
+              <span class="quote-mark" aria-hidden="true">"</span>
+              <blockquote class="quote-text">{q.text.replace(/^"|"$/g, "")}</blockquote>
+              <figcaption class="quote-cite">
+                <a href={q.url} target="_blank" rel="noopener noreferrer">
+                  {q.attribution}
+                </a>
+              </figcaption>
+            </figure>
+          );
+        })
+      }
+    </div>
+  </section>
+
+  <hr class="section-divider" />
+
+  <section>
+    <h2>{aboutTim.inPersonHeading}</h2>
+    <p set:html={aboutTim.inPersonLeadParagraph} />
+    <ul>
+      {aboutTim.inPersonBullets.map((b) => <li set:html={b} />)}
+    </ul>
+
+    {
+      aboutTim.inPersonImages.length > 0 && (
+        <div class="image-carousel">
+          {aboutTim.inPersonImages.length > 1 && (
+            <button class="ic-nav ic-prev" type="button" aria-label="Scroll left" data-ic-prev="true">
+              ‹
+            </button>
+          )}
+          <div class="ic-strip" data-ic-strip="true">
+            {aboutTim.inPersonImages.map((img, i) => (
+              <figure class="ic-item">
+                <img src={img.src} alt={img.alt} loading={i === 0 ? "eager" : "lazy"} />
+              </figure>
+            ))}
+          </div>
+          {aboutTim.inPersonImages.length > 1 && (
+            <button class="ic-nav ic-next" type="button" aria-label="Scroll right" data-ic-next="true">
+              ›
+            </button>
+          )}
+        </div>
+      )
+    }
+  </section>
+
+  <hr class="section-divider" />
+
+  <section>
+    <h2>{aboutTim.whatsNextHeading}</h2>
+    {aboutTim.whatsNextParagraphs.map((p) => <p set:html={p} />)}
+  </section>
+</BaseLayout>
+
+<style>
+  /* Sections sit flush with the divider above; the divider's own margin
+     provides the spacing between adjacent sections. */
+  section {
+    margin-top: 0;
+  }
+  /* Centered accent bar between every section. Each instance gets its own
+     random color from the palette on page load (see inline script). */
+  .section-divider {
+    width: 280px;
+    max-width: 60%;
+    height: 4px;
+    margin: 3.5rem auto;
+    border: 0;
+    border-radius: 999px;
+    background: #f08066;
+  }
+
+  /* Section headings get a short accent underline. Same color treatment as
+     the dividers — a random palette color per heading on each page load. */
+  section h2 {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+  }
+  section h2::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 48px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--h2-accent, #f08066);
+  }
+
+  /* Lead intro: bump the first paragraph so the page opens with a clear
+     "preamble" voice before the body paragraphs. */
+  .intro p:first-of-type {
+    font-size: 1.15rem;
+    line-height: 1.65;
+  }
+  .pull-quote {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-style: italic;
+    color: var(--link-hover);
+    margin: 1rem 0;
+  }
+  .about-split {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  /* "What they said..." quote cards — intentionally not the same shape as
+     projects/press cards, so they read as quotes rather than list items.
+     Thick accent left border + oversized quotation mark + display-font
+     italic text + attribution tag at the bottom. */
+  .quote-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.25rem;
+  }
+  .quote-card {
+    position: relative;
+    margin: 0;
+    padding: 1.5rem 1.5rem 1.25rem 2.25rem;
+    border-left: 6px solid var(--card-accent, var(--border));
+    border-radius: 0 6px 6px 0;
+    background: color-mix(in srgb, var(--card-accent) 8%, transparent);
+    overflow: hidden;
+  }
+  .quote-mark {
+    position: absolute;
+    top: -0.45em;
+    left: 0.35rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 5rem;
+    line-height: 1;
+    color: var(--card-accent);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .quote-text {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    color: var(--fg);
+  }
+  .quote-cite {
+    margin-top: 0.9rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 1.05rem;
+    text-align: right;
+  }
+  .quote-cite a {
+    color: var(--card-accent);
+    text-decoration: none;
+  }
+  .quote-cite a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  @media (max-width: 720px) {
+    .quote-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  ul {
+    padding-left: 1.25rem;
+  }
+  ul li {
+    margin: 0.4rem 0;
+  }
+  @media (max-width: 720px) {
+    .about-split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* "Wider in person" image strip — same pattern as the home page's
+     LatestPostsCarousel: a horizontal scrolling row of images with prev/next
+     arrows. Each image is locked to the strip height; width is auto so the
+     original aspect ratio is preserved (wide photos stay wide, tall photos
+     stay narrower). Extra images scroll off to the right rather than
+     wrapping. */
+  .image-carousel {
+    position: relative;
+    margin-top: 1.5rem;
+    padding: 0 3rem;
+  }
+  .ic-strip {
+    --strip-height: 360px;
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ic-item {
+    margin: 0;
+    flex: 0 0 auto;
+    height: var(--strip-height);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    scroll-snap-align: start;
+  }
+  .ic-item img {
+    height: 100%;
+    width: auto;
+    max-width: none;
+    object-fit: cover;
+    display: block;
+  }
+
+  .ic-nav {
+    position: absolute;
+    top: calc(var(--strip-height, 360px) / 2);
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--fg);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .ic-nav:hover {
+    border-color: var(--fg);
+    background: var(--bg-hover);
+  }
+  .ic-prev { left: 0; }
+  .ic-next { right: 0; }
+
+  @media (max-width: 600px) {
+    .image-carousel {
+      padding: 0;
+    }
+    .ic-strip {
+      --strip-height: 240px;
+    }
+    .ic-item {
+      height: var(--strip-height);
+    }
+    .ic-nav {
+      display: none;
+    }
+  }
+</style>
+
+<script is:inline>
+  // Pick a fresh color for the section divider on every page load — same
+  // palette as the rest of the site.
+  (function () {
+    var palette = [
+      "#f08066",
+      "#4dbeb0",
+      "#e8b441",
+      "#a896d8",
+      "#5fb3e0",
+      "#ec84a3",
+    ];
+    // Shuffle utility — returns a fresh shuffled copy of the palette.
+    function shuffled() {
+      var pool = palette.slice();
+      for (var i = pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+      }
+      return pool;
+    }
+
+    // Each section with an h2 gets one accent color, applied to both the
+    // h2's underline AND the divider immediately above the section — so
+    // each "section unit" has a unified color identity that reshuffles
+    // on every page load.
+    var heads = document.querySelectorAll("section h2");
+    if (heads.length > 0) {
+      var sectionPool = shuffled();
+      for (var h = 0; h < heads.length; h++) {
+        var color = sectionPool[h % sectionPool.length];
+        heads[h].style.setProperty("--h2-accent", color);
+        var sec = heads[h].closest("section");
+        var prev = sec && sec.previousElementSibling;
+        if (prev && prev.classList.contains("section-divider")) {
+          prev.style.background = color;
+        }
+      }
+    }
+
+    // Quote cards: shuffle the palette and assign a different color to
+    // each card on every page load. Shuffling (not independent random
+    // picks) guarantees adjacent cards never share a color.
+    var cards = document.querySelectorAll(".quote-card");
+    if (cards.length > 0) {
+      var cardPool = shuffled();
+      for (var k = 0; k < cards.length; k++) {
+        cards[k].style.setProperty("--card-accent", cardPool[k % cardPool.length]);
+      }
+    }
+  })();
+
+  // Image strip: prev/next arrows scroll by roughly one viewport-width's
+  // worth of images. Scroll-snap then settles on an image boundary. Same
+  // pattern as the home page's LatestPostsCarousel.
+  (function () {
+    var strip = document.querySelector("[data-ic-strip]");
+    if (!strip) return;
+    var prev = document.querySelector("[data-ic-prev]");
+    var next = document.querySelector("[data-ic-next]");
+    function step() {
+      return strip.clientWidth * 0.8;
+    }
+    if (prev) prev.addEventListener("click", function () {
+      strip.scrollBy({ left: -step(), behavior: "smooth" });
+    });
+    if (next) next.addEventListener("click", function () {
+      strip.scrollBy({ left: step(), behavior: "smooth" });
+    });
+  })();
+</script>
