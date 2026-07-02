@@ -98,12 +98,12 @@ export const aboutTim = {
   // /public/about-page-images/ and add an entry below. The carousel hides
   // its prev/next arrows + dots automatically when there's only one image.
   inPersonImages: [
-    {src: "/about-page-images/in-person-cpw-2024.png", alt: "CPW 2024"},
-    {src: "/about-page-images/in-person-lunchbreak-with-wide-tim.png", alt: "Lunch Break with Wide Tim"},
-    {src: "/about-page-images/in-person-inf-possibilities.png", alt: "Infinite Possibilities"},
-    {src: "/about-page-images/in-person-mp4g.png", alt: "MathPrize 4 Girls"},
-    {src: "/about-page-images/in-person-pi-w-wt-1.png", alt: "Pie with Wide Tim"},
-    {src: "/about-page-images/in-person-wt-coop.png", alt: "Wide Tim at the COOP"},
+    {src: "/about-page-images/in-person-cpw-2024.webp", alt: "CPW 2024"},
+    {src: "/about-page-images/in-person-lunchbreak-with-wide-tim.webp", alt: "Lunch Break with Wide Tim"},
+    {src: "/about-page-images/in-person-inf-possibilities.webp", alt: "Infinite Possibilities"},
+    {src: "/about-page-images/in-person-mp4g.webp", alt: "MathPrize 4 Girls"},
+    {src: "/about-page-images/in-person-pi-w-wt-1.webp", alt: "Pie with Wide Tim"},
+    {src: "/about-page-images/in-person-wt-coop.webp", alt: "Wide Tim at the COOP"},
   ],
 
   // ---- WHAT'S NEXT? ----

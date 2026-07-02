@@ -19,7 +19,7 @@ export const funItems: FunItem[] = [
     name: "Make a Wider Tim!",
     description: "Simple web game, circa Feb 2023.",
     href: "/for-fun/make-a-wider-tim",
-    image: "/make-a-wider-tim-src/wider-tim-preview.png",
+    image: "/make-a-wider-tim-src/wider-tim-preview.webp",
     imageAlt: "Screenshot of the Make a Wider Tim game",
   },
   {

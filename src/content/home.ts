@@ -14,16 +14,16 @@ export const home = {
   // `accent` is a per-card color used for the top stripe + hover border/label
   // — a small dose of playfulness without overwhelming the photos.
   quickLinks: [
-    { label: "About Wide Tim", href: "/about/wide-tim", image: "/home-page-images/about-wide-tim.png", imageAlt: "", accent: "#f08066" },
-    { label: "About the Creator", href: "/about/creator", image: "/home-page-images/about-the-creator.png", imageAlt: "", accent: "#4dbeb0" },
-    { label: "Selected Projects", href: "/about/projects", image: "/home-page-images/selected-projects.png", imageAlt: "", accent: "#e8b441" },
-    { label: "Collaborations", href: "/about/collaborators", image: "/home-page-images/collaborations.png", imageAlt: "", accent: "#a896d8" },
-    { label: "Just Here for Fun", href: "/for-fun", image: "/home-page-images/just-here-for-fun.png", imageAlt: "", accent: "#5fb3e0" },
+    { label: "About Wide Tim", href: "/about/wide-tim", image: "/home-page-images/about-wide-tim.webp", imageAlt: "", accent: "#f08066" },
+    { label: "About the Creator", href: "/about/creator", image: "/home-page-images/about-the-creator.webp", imageAlt: "", accent: "#4dbeb0" },
+    { label: "Selected Projects", href: "/about/projects", image: "/home-page-images/selected-projects.webp", imageAlt: "", accent: "#e8b441" },
+    { label: "Collaborations", href: "/about/collaborators", image: "/home-page-images/collaborations.webp", imageAlt: "", accent: "#a896d8" },
+    { label: "Just Here for Fun", href: "/for-fun", image: "/home-page-images/just-here-for-fun.webp", imageAlt: "", accent: "#5fb3e0" },
     {
       label: "Redbubble Shop",
       href: "https://www.redbubble.com/people/marge-z-art/shop?artistUserName=Marge-Z-Art&collections=2480587&iaCode=all-departments&sortOrder=top%20selling",
       external: true,
-      image: "/home-page-images/redbubble-shop.png",
+      image: "/home-page-images/redbubble-shop.webp",
       imageAlt: "",
       accent: "#ec84a3",
     },
