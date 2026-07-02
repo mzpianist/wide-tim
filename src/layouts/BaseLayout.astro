@@ -23,7 +23,8 @@ const pageDescription = description ?? site.description;
     <meta name="description" content={pageDescription} />
     <script is:inline>
       // Runs before paint to set the initial theme and avoid flash.
-      // Theme choice is "auto" | "light" | "dark". Auto follows sunrise/sunset.
+      // Theme choice is "auto" | "light" | "dark". Auto follows the OS
+      // light/dark preference.
       (function () {
         try {
           var choice = localStorage.getItem("themeChoice") || "auto";
@@ -31,15 +32,7 @@ const pageDescription = description ?? site.description;
           if (choice === "light" || choice === "dark") {
             applied = choice;
           } else {
-            // Use cached sun times if we have them; else fall back to OS preference.
-            var cache = null;
-            try { cache = JSON.parse(localStorage.getItem("sunCache") || "null"); } catch (e) {}
-            var now = Date.now();
-            if (cache && cache.sunrise && cache.sunset) {
-              applied = (now >= cache.sunrise && now < cache.sunset) ? "light" : "dark";
-            } else {
-              applied = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-            }
+            applied = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
           }
           document.documentElement.dataset.theme = applied;
           document.documentElement.dataset.themeChoice = choice;

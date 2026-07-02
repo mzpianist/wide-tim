@@ -121,22 +121,17 @@ function isActive(href: string) {
 </header>
 
 <script>
-  // Theme controller: Auto (sunrise/sunset) | Light | Dark.
-  // Cycles on click. Auto computes sunrise/sunset locally from the visitor's
-  // approximate lat/lng (IP-based, cached 7 days). Manual choice overrides.
+  // Theme controller: Auto (follows OS preference) | Light | Dark.
+  // Cycles on click. Manual choice overrides.
   const CHOICE_KEY = "themeChoice";
-  const SUN_CACHE_KEY = "sunCache";
-  const LOC_CACHE_KEY = "locCache";
-  const LOC_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-  const FALLBACK_LOC = { lat: 40.7128, lng: -74.006 }; // NYC
 
   const TITLES = {
-    auto: "Theme: Auto (sunrise/sunset). Click for Light.",
+    auto: "Theme: Auto (follows your system). Click for Light.",
     light: "Theme: Light. Click for Dark.",
     dark: "Theme: Dark. Click for Auto.",
   };
 
-  let autoTimer = null;
+  const osLight = window.matchMedia("(prefers-color-scheme: light)");
 
   function getChoice() {
     try {
@@ -160,155 +155,36 @@ function isActive(href: string) {
     document.documentElement.dataset.theme = theme;
   }
 
-  // NOAA solar position algorithm — returns Date objects in local TZ.
-  function computeSunTimes(date, lat, lng) {
-    const rad = Math.PI / 180;
-    const yearStart = new Date(date.getFullYear(), 0, 0);
-    const dayOfYear = Math.floor((date - yearStart) / 86400000);
-    const fy = ((2 * Math.PI) / 365) * (dayOfYear - 1);
-    const eqTime =
-      229.18 *
-      (0.000075 +
-        0.001868 * Math.cos(fy) -
-        0.032077 * Math.sin(fy) -
-        0.014615 * Math.cos(2 * fy) -
-        0.040849 * Math.sin(2 * fy));
-    const decl =
-      0.006918 -
-      0.399912 * Math.cos(fy) +
-      0.070257 * Math.sin(fy) -
-      0.006758 * Math.cos(2 * fy) +
-      0.000907 * Math.sin(2 * fy) -
-      0.002697 * Math.cos(3 * fy) +
-      0.00148 * Math.sin(3 * fy);
-    const latRad = lat * rad;
-    const cosH =
-      (Math.cos(90.833 * rad) - Math.sin(latRad) * Math.sin(decl)) /
-      (Math.cos(latRad) * Math.cos(decl));
-    if (cosH > 1) return { sunrise: null, sunset: null, polarNight: true };
-    if (cosH < -1) return { sunrise: null, sunset: null, polarDay: true };
-    const H = Math.acos(cosH) / rad;
-    const sunriseUTCmin = 720 - 4 * (lng + H) - eqTime;
-    const sunsetUTCmin = 720 - 4 * (lng - H) - eqTime;
-    const baseUTC = Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate()
-    );
-    return {
-      sunrise: new Date(baseUTC + sunriseUTCmin * 60000),
-      sunset: new Date(baseUTC + sunsetUTCmin * 60000),
-    };
+  function applyAuto() {
+    applyTheme(osLight.matches ? "light" : "dark");
   }
 
-  async function getLocation() {
-    try {
-      const cached = JSON.parse(localStorage.getItem(LOC_CACHE_KEY) || "null");
-      if (cached && cached.t && Date.now() - cached.t < LOC_TTL_MS) {
-        return { lat: cached.lat, lng: cached.lng };
-      }
-    } catch {}
-    try {
-      const res = await fetch("https://ipapi.co/json/");
-      if (res.ok) {
-        const data = await res.json();
-        if (
-          typeof data.latitude === "number" &&
-          typeof data.longitude === "number"
-        ) {
-          try {
-            localStorage.setItem(
-              LOC_CACHE_KEY,
-              JSON.stringify({
-                lat: data.latitude,
-                lng: data.longitude,
-                t: Date.now(),
-              })
-            );
-          } catch {}
-          return { lat: data.latitude, lng: data.longitude };
-        }
-      }
-    } catch {}
-    return FALLBACK_LOC;
-  }
-
-  async function refreshAuto() {
-    clearTimeout(autoTimer);
-    if (getChoice() !== "auto") return;
-
-    const loc = await getLocation();
-    const now = new Date();
-    const today = computeSunTimes(now, loc.lat, loc.lng);
-    const tomorrow = computeSunTimes(
-      new Date(now.getTime() + 86400000),
-      loc.lat,
-      loc.lng
-    );
-
-    let theme, nextEventMs;
-    if (today.polarDay) {
-      theme = "light";
-      nextEventMs = now.getTime() + 6 * 3600 * 1000;
-    } else if (today.polarNight) {
-      theme = "dark";
-      nextEventMs = now.getTime() + 6 * 3600 * 1000;
-    } else {
-      const nowMs = now.getTime();
-      if (nowMs < today.sunrise.getTime()) {
-        theme = "dark";
-        nextEventMs = today.sunrise.getTime();
-      } else if (nowMs < today.sunset.getTime()) {
-        theme = "light";
-        nextEventMs = today.sunset.getTime();
-      } else {
-        theme = "dark";
-        nextEventMs = tomorrow.sunrise
-          ? tomorrow.sunrise.getTime()
-          : nowMs + 6 * 3600 * 1000;
-      }
-
-      try {
-        localStorage.setItem(
-          SUN_CACHE_KEY,
-          JSON.stringify({
-            sunrise: today.sunrise.getTime(),
-            sunset: today.sunset.getTime(),
-          })
-        );
-      } catch {}
-    }
-
-    applyTheme(theme);
-
-    // Re-check at the next transition (cap at 6h so we re-sync if the tab
-    // sleeps or location/sun cache goes stale).
-    const delay = Math.min(
-      Math.max(nextEventMs - Date.now() + 1000, 60000),
-      6 * 3600 * 1000
-    );
-    autoTimer = setTimeout(refreshAuto, delay);
-  }
+  // Follow OS preference changes live while in auto mode.
+  osLight.addEventListener("change", () => {
+    if (getChoice() === "auto") applyAuto();
+  });
 
   function init() {
     const btn = document.getElementById("theme-toggle");
     if (!btn) return;
     btn.title = TITLES[getChoice()];
 
+    // Clean up caches left behind by the old sunrise/sunset auto mode.
+    try {
+      localStorage.removeItem("sunCache");
+      localStorage.removeItem("locCache");
+    } catch {}
+
     btn.addEventListener("click", () => {
       const current = getChoice();
       const next =
         current === "auto" ? "light" : current === "light" ? "dark" : "auto";
       setChoice(next);
-      if (next === "auto") {
-        refreshAuto();
-      } else {
-        clearTimeout(autoTimer);
-        applyTheme(next);
-      }
+      if (next === "auto") applyAuto();
+      else applyTheme(next);
     });
 
-    if (getChoice() === "auto") refreshAuto();
+    if (getChoice() === "auto") applyAuto();
   }
 
   init();
