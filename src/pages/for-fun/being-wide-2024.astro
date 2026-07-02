@@ -3,7 +3,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { beingWide } from "../../content/beingWide";
 ---
 
-<BaseLayout title={beingWide.heading}>
+<BaseLayout
+  title={beingWide.heading}
+  description="A little video about Wide Tim and why he wants to be wide."
+>
   <h1>{beingWide.heading}</h1>
   {beingWide.intro && <p>{beingWide.intro}</p>}
 

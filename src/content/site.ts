@@ -6,7 +6,8 @@
 export const site = {
   title: "Wide Tim",
   tagline: "Hello world, I'm Wide Tim!",
-  description: "The official home of Wide Tim.",
+  description:
+    "The official home of Wide Tim — a plump, happy beaver character created by Margaret Zheng, spreading joy, love, and art in and around the MIT community.",
   copyrightName: "Margaret Zheng",
   copyrightStart: 2021,
 };
