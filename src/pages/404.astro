@@ -1,0 +1,38 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Page Not Found"
+  description="This page doesn't exist — but Wide Tim does."
+>
+  <div class="notfound">
+    <img
+      class="notfound-img"
+      src="/favicon.png"
+      alt=""
+      width="64"
+      height="64"
+    />
+    <h1>404 — Page not found</h1>
+    <p>
+      Hmm, this page is too narrow to exist. Maybe it moved, or maybe the link
+      was a little off.
+    </p>
+    <p>
+      <a href="/">Head back home</a> or say hi on the
+      <a href="/contact">contact page</a>.
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .notfound {
+    text-align: center;
+    padding: 4rem 0;
+  }
+  .notfound-img {
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+  }
+</style>

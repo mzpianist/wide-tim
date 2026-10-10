@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Make a Wider Tim!",
+    "description": "Simple web game, circa Feb 2023.",
+    "href": "/for-fun/make-a-wider-tim",
+    "image": "/make-a-wider-tim-src/wider-tim-preview.webp",
+    "imageAlt": "Screenshot of the Make a Wider Tim game"
+  },
+  {
+    "name": "Being WIDE",
+    "description": "A little video about me & why I want to be wide <3",
+    "href": "/for-fun/being-wide-2024",
+    "image": "https://img.youtube.com/vi/cglrEGjWdvg/maxresdefault.jpg",
+    "imageAlt": "Being WIDE (2024) video thumbnail"
+  }
+]

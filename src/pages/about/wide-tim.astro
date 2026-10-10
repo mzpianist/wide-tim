@@ -1,0 +1,754 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import InstagramEmbed from "../../components/InstagramEmbed.astro";
+import { aboutTim } from "../../content/aboutTim";
+import { INK, PALETTE } from "../../content/palette";
+import { collaborations, formatDateShort, parseDate } from "../../content/collaborators";
+
+// "Lately" list on the What's Next slide: the 3 newest collaborations, so the
+// slide keeps up with collaborators.csv without editing its paragraphs.
+// Missing month/day sort to the start of their year (a year-only row counts
+// as older than any dated row that year). Array.sort is stable, so ties
+// keep CSV order.
+const dateKey = (s: string) => {
+  const { year, month, day } = parseDate(s);
+  return year * 10000 + (month ?? 0) * 100 + (day ?? 0);
+};
+const lately = [...collaborations]
+  .sort((a, b) => dateKey(b.date) - dateKey(a.date))
+  .slice(0, 3);
+
+// The page is a slide deck: one section per slide. This list drives the
+// dots under the deck and each slide's accessible label. The `id`s double as
+// deep links (e.g. /about/wide-tim#in-person opens on that slide).
+const slides = [
+  { id: "intro", title: aboutTim.heading },
+  { id: "birth", title: aboutTim.aboutHeading },
+  { id: "becoming-wider", title: aboutTim.widerHeading },
+  { id: "they-say", title: aboutTim.quotesHeading.replace(/:$/, "") },
+  { id: "in-person", title: aboutTim.inPersonHeading },
+  { id: "whats-next", title: aboutTim.whatsNextHeading },
+];
+const slideLabel = (id: string) => {
+  const i = slides.findIndex((s) => s.id === id);
+  return `${i + 1} of ${slides.length}: ${slides[i].title}`;
+};
+---
+
+<BaseLayout
+  title="About Wide Tim"
+  description="Meet Wide Tim — a plump, happy beaver created by Margaret Zheng (MIT '23), collaborating with MIT clubs and offices on thousands of wholesome illustrations since 2021."
+>
+  <div class="deck" data-deck role="region" aria-roledescription="carousel" aria-label={aboutTim.heading}>
+    <div class="deck-track" data-deck-track>
+      <section class="slide" id="intro" aria-roledescription="slide" aria-label={slideLabel("intro")}>
+        <div class="slide-body intro">
+          <div class="intro-copy">
+            <hgroup>
+              <h1>{aboutTim.heading}</h1>
+              <p class="intro-subheading">{aboutTim.introSubheading}</p>
+            </hgroup>
+            {aboutTim.introParagraphs.map((p) => <p set:html={p} />)}
+          </div>
+          <img class="intro-image" src={aboutTim.introImage.src} alt={aboutTim.introImage.alt} />
+        </div>
+      </section>
+
+      <section class="slide" id="birth" aria-roledescription="slide" aria-label={slideLabel("birth")}>
+        <div class="slide-body about-split">
+          <div class="about-copy">
+            <h2>{aboutTim.aboutHeading}</h2>
+            {aboutTim.aboutParagraphs.map((p) => <p set:html={p} />)}
+          </div>
+          <div class="about-image">
+            <InstagramEmbed url="https://www.instagram.com/p/CLPr1dgnLd5/" captioned={false} maxWidth={340} />
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="becoming-wider" aria-roledescription="slide" aria-label={slideLabel("becoming-wider")}>
+        <div class="slide-body statement">
+          <h2>{aboutTim.widerHeading}</h2>
+          <p set:html={aboutTim.widerLeadParagraph} />
+          <ul class="wider-list">
+            {aboutTim.widerAskedAbout.map((item) => <li set:html={item} />)}
+          </ul>
+          <p set:html={aboutTim.widerClosingParagraph} />
+        </div>
+      </section>
+
+      <section class="slide" id="they-say" aria-roledescription="slide" aria-label={slideLabel("they-say")}>
+        <div class="slide-body">
+          <h2>{aboutTim.quotesHeading}</h2>
+          <div class="quote-grid">
+            {
+              aboutTim.quotes.map((q) => (
+                <figure class="quote-card">
+                  <span class="quote-mark" aria-hidden="true">"</span>
+                  <blockquote class="quote-text">{q.text.replace(/^"|"$/g, "")}</blockquote>
+                  <figcaption class="quote-cite">
+                    <a href={q.url} target="_blank" rel="noopener noreferrer">
+                      {q.attribution}
+                    </a>
+                  </figcaption>
+                </figure>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="in-person" aria-roledescription="slide" aria-label={slideLabel("in-person")}>
+        <div class="slide-body in-person-split">
+          <div>
+            <h2>{aboutTim.inPersonHeading}</h2>
+            <p set:html={aboutTim.inPersonLeadParagraph} />
+            <ul>
+              {aboutTim.inPersonBullets.map((b) => <li set:html={b} />)}
+            </ul>
+          </div>
+          {
+            aboutTim.inPersonImages.length > 0 && (
+              <div class="photo-grid" style={`--photo-rows: ${Math.ceil(aboutTim.inPersonImages.length / 2)}`}>
+                {aboutTim.inPersonImages.map((img) => (
+                  <figure class="photo">
+                    <img src={img.src} alt={img.alt} title={img.alt} loading="lazy" />
+                  </figure>
+                ))}
+              </div>
+            )
+          }
+        </div>
+      </section>
+
+      <section class="slide" id="whats-next" aria-roledescription="slide" aria-label={slideLabel("whats-next")}>
+        <div class="slide-body statement">
+          <h2>{aboutTim.whatsNextHeading}</h2>
+          {aboutTim.whatsNextParagraphs.map((p) => <p set:html={p} />)}
+          {
+            lately.length > 0 && (
+              <div class="lately">
+                <span class="lately-label">Lately</span>
+                <ul class="lately-list">
+                  {lately.map((c) => (
+                    <li>
+                      <span class="lately-date">{formatDateShort(c.date)}</span>
+                      {" · "}
+                      {/* Name and event stay on one line: a line break
+                           between them would render as a space before the
+                           comma. */}
+                      {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer">{c.collaborator}</a> : c.collaborator}{c.event ? `, ${c.event}` : ""}
+                    </li>
+                  ))}
+                </ul>
+                <a class="lately-all" href="/about/collaborators">See all collaborations →</a>
+              </div>
+            )
+          }
+        </div>
+      </section>
+    </div>
+
+    <div class="deck-controls">
+      <button class="deck-nav" type="button" aria-label="Previous slide" data-deck-prev>‹</button>
+      <ol class="deck-dots">
+        {
+          slides.map((s, i) => (
+            <li>
+              <button
+                class="deck-dot"
+                type="button"
+                aria-label={`Go to slide ${i + 1}: ${s.title}`}
+                aria-current={i === 0 ? "true" : "false"}
+                data-deck-dot
+              />
+            </li>
+          ))
+        }
+      </ol>
+      <button class="deck-nav" type="button" aria-label="Next slide" data-deck-next>›</button>
+      <span class="deck-count" aria-live="polite" data-deck-count>1 / {slides.length}</span>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  /* ---- DECK ----
+     A horizontal scroll-snap strip with one full-width slide per section.
+     Native scrolling gives swipe / trackpad support for free; the script
+     below adds the arrows, dots, and ← → keys on top.
+     The deck fills the rest of the window below the nav. --deck-top is the
+     deck's distance from the top of the page, measured by the script; the
+     fallback is roughly the nav + main's top padding.
+     The deck is also wider than the page's usual 1000px column: it spans
+     --container-wide (global.css), lining up with the nav and footer, so
+     slides get a presentation-like shape on big screens. */
+  .deck {
+    --deck-width: calc(min(var(--container-wide), 100vw) - 3rem);
+    width: var(--deck-width);
+    margin-inline: calc((100% - var(--deck-width)) / 2);
+    --deck-height: max(32rem, calc(100svh - var(--deck-top, 8rem) - 1.5rem));
+    height: var(--deck-height);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .deck-track {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 1.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    /* Stops a sideways trackpad swipe on the last slide from triggering the
+       browser's back/forward gesture. */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .deck-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Each slide is a card. Content is vertically centered; if a slide is
+     taller than the window (small laptops, phones) it scrolls on its own. */
+  .slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    /* Deep links (#in-person) keep the nav in view instead of scrolling it
+       off the top. */
+    scroll-margin-top: 10rem;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    --slide-pad-y: 2.5rem;
+    padding: var(--slide-pad-y) 3rem;
+    /* Same card look as the rest of the site (press, for-fun, contact), on
+       the page's own background color: a hairline border and a 3px stripe
+       across the top in the slide's palette color (a random one per slide
+       on each page load — see script). The stripe is an inset shadow rather
+       than a ::before so it stays put when a tall slide scrolls. */
+    background: var(--bg);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 3px 0 var(--slide-accent, var(--border));
+    /* Body text a touch softer than the titles (see .slide h1, h2). */
+    color: var(--fg-body);
+    /* Every font size inside a slide is in em off this one number, so
+       changing it scales all the slides' text and titles together. Shorter
+       and narrower screens lower it (see the media queries at the bottom). */
+    font-size: 1.3rem;
+    border-radius: 8px;
+  }
+  .slide-body {
+    margin-block: auto;
+    width: 100%;
+  }
+  /* Text-only slides keep a readable line length and sit centered in the
+     wide card. */
+  .slide-body.statement {
+    max-width: 40em;
+    margin-inline: auto;
+  }
+
+  .slide h1 {
+    font-size: 3.2em;
+  }
+  /* When a title wraps, split it into even lines instead of leaving one
+     word hanging on the last line. */
+  .slide h1,
+  .slide h2 {
+    color: var(--fg);
+    text-wrap: balance;
+  }
+  /* Links are highlighted in the slide's color, like a marker: rounded,
+     bold, with dark text in both themes (the bright palette needs it, same
+     as the nav's active pill). box-decoration-break keeps the rounded ends
+     on every line when a link wraps. :global so it also reaches links
+     inside the set:html paragraphs. */
+  .slide :global(a) {
+    background: var(--slide-accent, var(--bg-hover));
+    color: #1a1a1a;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.05em 0.35em;
+    border-radius: 0.4em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .slide :global(a:hover) {
+    color: #1a1a1a;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+
+  /* Drop cap: the first letter of each slide's opening paragraph (and of
+     each quote) is bigger, bold, in the slide's color, and sunk two lines
+     deep. flow-root keeps a short paragraph from letting it hang into the
+     next one. */
+  .intro-copy > p:first-of-type,
+  .about-copy > p:first-of-type,
+  .statement > p:first-of-type,
+  .in-person-split > div > p:first-of-type,
+  .quote-text {
+    display: flow-root;
+  }
+  .intro-copy > p:first-of-type::first-letter,
+  .about-copy > p:first-of-type::first-letter,
+  .statement > p:first-of-type::first-letter,
+  .in-person-split > div > p:first-of-type::first-letter,
+  .quote-text::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-style: normal;
+    font-weight: 700;
+    font-size: 3em;
+    line-height: 0.85;
+    margin: 0.04em 0.1em 0 0;
+    color: var(--slide-ink, var(--slide-accent, var(--fg)));
+  }
+  /* Slide headings get a short underline in the slide's color. */
+  .slide h2 {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 0.2em;
+    margin-top: 0;
+    margin-bottom: 0.4em;
+    font-size: 2.3em;
+  }
+  .slide h2::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 1em;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--slide-accent, var(--fg));
+  }
+  .slide p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ---- CONTROLS ---- */
+  .deck-controls {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .deck-nav {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--fg);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .deck-nav:hover {
+    border-color: var(--fg);
+    background: var(--bg-hover);
+  }
+  .deck-dots {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  /* The button is the (bigger) click target; ::before is the visible dot.
+     The current slide's dot stretches into a pill in that slide's color. */
+  .deck-dot {
+    display: block;
+    padding: 0.6rem 0.3rem;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .deck-dot::before {
+    content: "";
+    display: block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--fg) 25%, transparent);
+    transition: width 0.2s ease, background 0.2s ease;
+  }
+  .deck-dot:hover::before {
+    background: color-mix(in srgb, var(--fg) 50%, transparent);
+  }
+  .deck-dot[aria-current="true"]::before {
+    width: 1.75rem;
+    background: var(--dot-accent, var(--fg));
+  }
+  .deck-count {
+    position: absolute;
+    right: 0;
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    font-size: 0.9rem;
+    color: var(--fg-muted);
+  }
+
+  /* ---- SLIDE: INTRO ----
+     Text on the left, a square picture of Wide Tim on the right. The title
+     has an italic subheading tucked under it, then the intro paragraphs are
+     bumped up so the page opens with a clear "preamble" voice. The picture
+     is sized in em so it shrinks with the type on shorter screens. */
+  .intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  .intro-image {
+    display: block;
+    width: 15em;
+    aspect-ratio: 1;
+    border-radius: 6px;
+  }
+  .intro hgroup {
+    margin-bottom: 1em;
+  }
+  .intro h1 {
+    margin-bottom: 0.35rem;
+  }
+  .intro-subheading {
+    font-family: var(--font-display);
+    font-size: 1.35em;
+    font-style: italic;
+    color: var(--fg-muted);
+    margin: 0;
+  }
+  .intro-copy > p {
+    font-size: 1.1em;
+  }
+
+  /* ---- SLIDE: THE BIRTH OF WIDE TIM ---- */
+  .about-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 2.5rem;
+    align-items: center;
+  }
+
+  /* ---- SLIDES WITH ONE SHORT BLOCK OF TEXT ----
+     Larger type so a single paragraph fills the slide like a statement. */
+  .statement p {
+    font-size: 1.15em;
+    line-height: 1.7;
+  }
+
+  /* ---- SLIDE: BECOMING WIDER ----
+     The things he asked his friends about, as bullets between the lead and
+     closing paragraphs. Same type size as the paragraphs around it; a class
+     (not ".statement ul") so it doesn't also restyle the "Lately" list. */
+  .wider-list {
+    font-size: 1.15em;
+    line-height: 1.5;
+    margin: -0.4rem 0 0.75rem;
+  }
+
+  /* ---- SLIDE: WHAT'S NEXT, "Lately" list ----
+     Sits below the slide's paragraphs. A div (not a p) wraps it so the
+     drop cap rule (.statement > p:first-of-type) keeps hitting only the
+     opening paragraph. Links get the slide's marker highlight from
+     .slide :global(a). */
+  .lately {
+    margin-top: 1.1rem;
+  }
+  .lately-label {
+    display: block;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.7em;
+    color: var(--slide-ink, var(--slide-accent, var(--fg-muted)));
+    margin-bottom: 0.25rem;
+  }
+  .lately-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    color: var(--fg-body);
+    font-size: 0.85em;
+    line-height: 1.5;
+  }
+  .lately-list li {
+    margin: 0.15rem 0;
+  }
+  .lately-date {
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    color: var(--slide-ink, var(--slide-accent, var(--fg-muted)));
+  }
+  .lately-all {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.8em;
+  }
+
+  /* ---- SLIDE: THEY SAY ----
+     Quote cards — intentionally not the same shape as projects/press cards,
+     so they read as quotes rather than list items. Thick left border in the
+     slide's color (like the contact page's callout) + oversized quotation
+     mark + display-font italic text + attribution tag at the bottom. They
+     sit on the slide like cards on a page (the elevated card color). */
+  .quote-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.25rem;
+  }
+  .quote-card {
+    position: relative;
+    margin: 0;
+    padding: 1.5rem 1.5rem 1.25rem 2.25rem;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--slide-accent, var(--fg));
+    border-radius: 6px;
+    background: var(--bg-elev);
+    overflow: hidden;
+  }
+  .quote-mark {
+    position: absolute;
+    top: -0.05em;
+    left: 0.3rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 3.5em;
+    line-height: 1;
+    color: var(--slide-accent, var(--fg));
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .quote-text {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.05em;
+    line-height: 1.5;
+  }
+  .quote-cite {
+    margin-top: 0.9rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.9em;
+    text-align: right;
+    color: var(--slide-ink, var(--slide-accent, var(--fg-muted)));
+  }
+  .quote-cite a {
+    text-decoration: none;
+  }
+  .quote-cite a:hover {
+    text-decoration: underline;
+  }
+
+  /* ---- SLIDE: WIDER IN PERSON ----
+     Bullets on the left, a two-column grid of photos on the right. Photos
+     are cropped to a common 4:3 frame so the grid stays tidy. */
+  .in-person-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: center;
+  }
+  ul {
+    padding-left: 1.25rem;
+    margin: 0;
+  }
+  ul li {
+    margin: 0.4rem 0;
+  }
+  ul li::marker {
+    color: var(--slide-accent, var(--fg));
+  }
+  /* The grid's width is capped so its rows of photos are never taller than
+     the slide. The slide's inner height is the deck minus the controls
+     (2.5rem) and the gap above them (1rem), and the slide's padding and
+     1px borders; --photo-rows is set in the markup from the photo count. */
+  .photo-grid {
+    --photo-gap: 0.6rem;
+    --slide-inner: calc(var(--deck-height) - 3.5rem - 2 * var(--slide-pad-y) - 2px);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--photo-gap);
+    width: 100%;
+    max-width: calc(
+      (var(--slide-inner) - (var(--photo-rows) - 1) * var(--photo-gap)) * 8 / (3 * var(--photo-rows)) +
+        var(--photo-gap)
+    );
+    justify-self: end;
+  }
+  .photo {
+    margin: 0;
+    aspect-ratio: 4 / 3;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-hover);
+  }
+  .photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* ---- SHORT LAPTOP SCREENS ----
+     Tighten padding and step the type down so the slides still fit without
+     scrolling inside the card. */
+  @media (min-width: 721px) and (max-height: 860px) {
+    .slide {
+      --slide-pad-y: 1.75rem;
+      padding: var(--slide-pad-y) 2.5rem;
+      font-size: 1.12rem;
+    }
+    /* Tighter bullets so Becoming Wider fits on a 768px-tall laptop. */
+    .wider-list {
+      line-height: 1.35;
+    }
+    /* Instagram won't render its embed narrower than 326px, so scale the
+       whole thing down instead. */
+    .about-split {
+      grid-template-columns: minmax(0, 1fr) 290px;
+    }
+    .about-image {
+      zoom: 0.88;
+    }
+    .in-person-split {
+      gap: 2rem;
+    }
+    ul li {
+      margin: 0.25rem 0;
+    }
+  }
+  @media (min-width: 721px) and (max-height: 720px) {
+    .slide {
+      --slide-pad-y: 1.5rem;
+      font-size: 1rem;
+    }
+    .about-split {
+      grid-template-columns: minmax(0, 1fr) 255px;
+    }
+    .about-image {
+      zoom: 0.78;
+    }
+  }
+
+  /* ---- SMALL SCREENS ----
+     Columns stack, and the deck fills the whole screen once you scroll
+     past the (taller, stacked) mobile nav. */
+  @media (max-width: 720px) {
+    .deck {
+      width: auto;
+      margin-inline: 0;
+      height: calc(100svh - 2rem);
+    }
+    .slide {
+      padding: 1.75rem 1.25rem;
+      font-size: 1rem;
+    }
+    /* Titles scale down more than the text so they don't swamp a phone. */
+    .slide h1 {
+      font-size: 2.4em;
+    }
+    .slide h2 {
+      font-size: 1.8em;
+    }
+    .about-split,
+    .in-person-split,
+    .quote-grid {
+      grid-template-columns: 1fr;
+    }
+    .about-split,
+    .in-person-split {
+      gap: 1.5rem;
+    }
+    /* Stacked under the bullets, so the slide just scrolls. */
+    .photo-grid {
+      max-width: none;
+    }
+    /* Wide Tim's picture moves above the title, smaller. */
+    .intro {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    .intro-image {
+      order: -1;
+      width: 8em;
+    }
+    .statement p,
+    .wider-list {
+      font-size: 1.05em;
+    }
+    .deck-count {
+      display: none;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ palette: PALETTE, ink: INK }}>
+  // Slide colors: each slide gets one palette color on every page load,
+  // used for its top stripe and accents, and its dot in the controls. Shuffling (not
+  // independent random picks) guarantees neighbors never share a color.
+  (function () {
+    // Copy: the shuffle below mutates it.
+    var pool = palette.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+
+    var slides = document.querySelectorAll(".slide");
+    var dots = document.querySelectorAll("[data-deck-dot]");
+    for (var s = 0; s < slides.length; s++) {
+      var color = pool[s % pool.length];
+      slides[s].style.setProperty("--slide-accent", color);
+      // Text-safe version of the color (darker in light mode; see --ink-*
+      // in global.css). `palette` and `ink` come from src/content/palette.ts
+      // via define:vars, which inlines them into this script at build time.
+      slides[s].style.setProperty("--slide-ink", ink[color]);
+      if (dots[s]) dots[s].style.setProperty("--dot-accent", color);
+    }
+  })();
+
+  // --deck-top: the deck's distance from the top of the page, so it can
+  // fill the rest of the window (see .deck). Measured here, inline, so the
+  // first paint already has it.
+  (function () {
+    var deck = document.querySelector("[data-deck]");
+    if (!deck) return;
+    function measure() {
+      deck.style.setProperty("--deck-top", deck.getBoundingClientRect().top + window.scrollY + "px");
+    }
+    measure();
+    window.addEventListener("resize", measure);
+  })();
+</script>
+
+<script>
+  // Deck navigation — arrows, dots, ← → keys, swiping, and wrapping around
+  // from the last slide to the first. Shared with the Project Gallery.
+  import { initLoopingCarousel } from "../../scripts/loopingCarousel";
+
+  const deck = document.querySelector<HTMLElement>("[data-deck]");
+  if (deck) {
+    initLoopingCarousel({
+      track: deck.querySelector<HTMLElement>("[data-deck-track]")!,
+      dots: deck.querySelectorAll<HTMLElement>("[data-deck-dot]"),
+      prev: deck.querySelector<HTMLElement>("[data-deck-prev]"),
+      next: deck.querySelector<HTMLElement>("[data-deck-next]"),
+      count: deck.querySelector<HTMLElement>("[data-deck-count]"),
+    });
+  }
+</script>

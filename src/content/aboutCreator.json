@@ -1,0 +1,24 @@
+{
+  "heading": "About the Creator",
+  "image": "/about-creator-images/mz-portrait.webp",
+  "imageAlt": "Margaret Zheng",
+  "name": "Tianyuan “Margaret” Zheng",
+  "chineseName": "郑天圆",
+  "facts": [
+    "MIT '23, MEng '24",
+    "Phi Beta Kappa, Tau Beta Pi"
+  ],
+  "links": [
+    {
+      "label": "Instagram",
+      "handle": "@marge_z_art",
+      "url": "https://www.instagram.com/marge_z_art/"
+    }
+  ],
+  "paragraphs": [
+    "Margaret is an interdisciplinary artist who creates across many mediums: from illustration to comics, from vibe coding to poetry, from improvising in the kitchen to improvising at the piano. Before finding her way to MIT, Margaret was born and raised in Qingdao, China and spent many of her formative years in Mobile, AL. Though she currently resides in Cambridge, MA, she proudly calls all three places home.",
+    "As an MIT community member, she is best known as the creator of Wide Tim (<a href=\"https://www.instagram.com/wide_tim\" target=\"_blank\" rel=\"noopener noreferrer\">@wide_tim</a>), a jolly beaver who double majored in eating and sleeping and made it his mission to spread positivity and champion arts and student culture at MIT.",
+    "Beyond Wide Tim, she has been involved in MIT's arts communities ever since her very first semester. She was a muralist, an animator, co-president of <a href=\"http://borderline.mit.edu/\" target=\"_blank\" rel=\"noopener noreferrer\">Borderline Murals</a>, a designer of her own <a href=\"https://brassrat.mit.edu/2023/\" target=\"_blank\" rel=\"noopener noreferrer\">MIT Class Ring</a>, an <a href=\"https://arts.mit.edu/start/arts-scholars/\" target=\"_blank\" rel=\"noopener noreferrer\">MIT Arts Scholar</a>, and a lead counselor for the First-Year Arts Program for two years.",
+    "Today, Margaret works full-time in Boston in a role outside the art world, but her vision as an artist has only kept growing wider. She still actively creates digital illustrations and still sits down at any piano she can find, though the ones in <a href=\"https://housing.mit.edu/residences/mccormick-hall\" target=\"_blank\" rel=\"noopener noreferrer\">McCormick Hall</a> would always remain her favorites. "
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "heading": "Hello world, I'm Wide Tim!",
+  "intro": "",
+  "quickLinks": [
+    {
+      "label": "About Wide Tim",
+      "href": "/about/wide-tim",
+      "color": "coral"
+    },
+    {
+      "label": "About the Creator",
+      "href": "/about/creator",
+      "color": "mustard"
+    },
+    {
+      "label": "Say Hi to Wide Tim!",
+      "href": "/contact",
+      "color": "teal",
+      "arrow": false
+    },
+    {
+      "label": "Past Collaborations",
+      "href": "/about/collaborators",
+      "color": "lavender"
+    },
+    {
+      "label": "Fun Projects",
+      "href": "/for-fun",
+      "color": "sky"
+    },
+    {
+      "label": "Redbubble Shop",
+      "href": "https://www.redbubble.com/people/marge-z-art/shop?artistUserName=Marge-Z-Art&collections=2480587&iaCode=all-departments&sortOrder=top%20selling",
+      "external": true,
+      "color": "pink"
+    }
+  ]
+}

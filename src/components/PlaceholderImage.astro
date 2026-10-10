@@ -1,0 +1,26 @@
+---
+// Shows an <img> if a src is given AND the file is meant to exist.
+// Otherwise renders a visible placeholder box.
+// Usage:
+//   <PlaceholderImage src={image} alt={imageAlt} label="About Tim portrait" />
+interface Props {
+  src?: string;
+  alt?: string;
+  label?: string; // text inside the placeholder box
+  aspectRatio?: string; // CSS aspect-ratio, e.g. "4 / 3"
+}
+const { src, alt = "", label = "Image placeholder", aspectRatio } = Astro.props;
+
+// Treat empty string as "no image"
+const hasSrc = src && src.trim().length > 0;
+---
+
+{
+  hasSrc ? (
+    <img src={src} alt={alt} style={aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""} />
+  ) : (
+    <div class="placeholder-img" style={aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}>
+      {label}
+    </div>
+  )
+}

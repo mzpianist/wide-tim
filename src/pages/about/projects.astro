@@ -1,0 +1,616 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PlaceholderImage from "../../components/PlaceholderImage.astro";
+import { projects, projectsPage } from "../../content/projects";
+import { inkFor, PALETTE } from "../../content/palette";
+
+// Cycled per-project accent colors — same palette as the home page
+// quick-links so the two pages feel like they belong together. A project
+// keeps its color in both views (card stripe in the list, slide fill in the
+// carousel).
+const palette = PALETTE;
+
+// Image-having projects render first; image-less projects fall to the end
+// but still get the full colorful treatment (just without the photo).
+const sortedProjects = [
+  ...projects.filter((p) => p.image && p.image.trim().length > 0),
+  ...projects.filter((p) => !p.image || p.image.trim().length === 0),
+];
+const items = sortedProjects.map((p, i) => ({
+  ...p,
+  accent: palette[i % palette.length],
+  hasImage: !!(p.image && p.image.trim().length > 0),
+}));
+---
+
+<BaseLayout
+  title={projectsPage.heading}
+  description="Wide Tim's project gallery — mostly in-person events, exhibitions, and appearances around MIT, from Campus Preview Weekend to Artfinity."
+>
+  <h1>{projectsPage.heading}</h1>
+  {projectsPage.intro && <p class="intro">{projectsPage.intro}</p>}
+
+  <div class="gallery" data-gallery data-view={projectsPage.defaultView}>
+    <div class="view-toggle" role="group" aria-label="View projects as">
+      <button
+        type="button"
+        data-view-btn="carousel"
+        aria-pressed={projectsPage.defaultView === "carousel" ? "true" : "false"}
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="5" y="4" width="10" height="12" rx="1.5" />
+          <path d="M2 6v8M18 6v8" />
+        </svg>
+        Carousel
+      </button>
+      <button
+        type="button"
+        data-view-btn="list"
+        aria-pressed={projectsPage.defaultView === "list" ? "true" : "false"}
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="3" y="3" width="6" height="6" rx="1" />
+          <rect x="11" y="3" width="6" height="6" rx="1" />
+          <rect x="3" y="11" width="6" height="6" rx="1" />
+          <rect x="11" y="11" width="6" height="6" rx="1" />
+        </svg>
+        List
+      </button>
+    </div>
+
+    <script is:inline>
+      // Apply the visitor's last-picked view before the views below are
+      // drawn, so a returning list-viewer doesn't see the carousel flash first.
+      (function () {
+        var gallery = document.currentScript.parentElement;
+        var saved;
+        try { saved = localStorage.getItem("projects-view"); } catch (e) {}
+        if (saved !== "carousel" && saved !== "list") return;
+        gallery.setAttribute("data-view", saved);
+        var buttons = gallery.querySelectorAll("[data-view-btn]");
+        for (var b = 0; b < buttons.length; b++) {
+          buttons[b].setAttribute("aria-pressed", buttons[b].getAttribute("data-view-btn") === saved ? "true" : "false");
+        }
+      })();
+    </script>
+
+    <section class="carousel" data-carousel aria-roledescription="carousel" aria-label="Projects">
+      <div class="carousel-track" data-carousel-track>
+        {
+          items.map((p, i) => (
+            <section
+              class={`slide${p.hasImage ? "" : " slide-noimage"}`}
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${items.length}: ${p.name}`}
+              style={`--slide-accent: ${p.accent}`}
+            >
+              {p.hasImage && (
+                <div class="slide-image">
+                  <img
+                    src={p.image}
+                    alt={p.imageAlt ?? p.name}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    decoding="async"
+                  />
+                </div>
+              )}
+              <div class="slide-text">
+                <h2 class="slide-title">{p.name}</h2>
+                <div class="slide-date">{p.date}</div>
+                {p.description && <p class="slide-desc">{p.description}</p>}
+                {(p.url || (p.links && p.links.length > 0)) && (
+                  <div class="slide-links">
+                    {p.url && (
+                      <a href={p.url} target="_blank" rel="noopener noreferrer">
+                        Learn more →
+                      </a>
+                    )}
+                    {p.links?.map((l) => (
+                      <a href={l.url} target="_blank" rel="noopener noreferrer">
+                        {l.label} →
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          ))
+        }
+      </div>
+
+      {
+        items.length > 1 && (
+          <div class="carousel-controls">
+            <button class="carousel-nav" type="button" aria-label="Previous project" data-carousel-prev>‹</button>
+            <ol class="carousel-dots">
+              {items.map((p, i) => (
+                <li>
+                  <button
+                    class="carousel-dot"
+                    type="button"
+                    aria-label={`Go to project ${i + 1}: ${p.name}`}
+                    aria-current={i === 0 ? "true" : "false"}
+                    style={`--dot-accent: ${p.accent}`}
+                    data-carousel-dot
+                  />
+                </li>
+              ))}
+            </ol>
+            <button class="carousel-nav" type="button" aria-label="Next project" data-carousel-next>›</button>
+            <span class="carousel-count" aria-live="polite" data-carousel-count>1 / {items.length}</span>
+          </div>
+        )
+      }
+    </section>
+
+    <ul class="project-grid">
+      {
+        items.map((p) => {
+          // The whole card is a link only when the project has a url and no
+          // extra links. With extra links the card is an <article> (an <a>
+          // can't nest inside an <a>), and its url, if any, becomes the first
+          // entry in the links row instead.
+          const hasLinks = !!p.links && p.links.length > 0;
+          const isLink = !!p.url && !hasLinks;
+          const Tag = isLink ? "a" : "article";
+          return (
+            <li>
+              <Tag
+                class={`project-card${isLink ? " project-card-link" : ""}${!p.hasImage ? " project-card-noimage" : ""}`}
+                href={isLink ? p.url : undefined}
+                target={isLink ? "_blank" : undefined}
+                rel={isLink ? "noopener noreferrer" : undefined}
+                style={`--card-accent: ${p.accent}; --card-ink: ${inkFor(p.accent)}`}
+              >
+                {p.hasImage && (
+                  <div class="card-thumb">
+                    <PlaceholderImage
+                      src={p.image}
+                      alt={p.imageAlt ?? p.name}
+                      label={`${p.name} — image placeholder`}
+                      aspectRatio="16 / 9"
+                    />
+                  </div>
+                )}
+                <div class="card-body">
+                  <h2 class="card-title">{p.name}</h2>
+                  <div class="meta">{p.date}</div>
+                  {p.description && <p class="desc">{p.description}</p>}
+                  {hasLinks && (
+                    <div class="extra-links">
+                      {p.url && (
+                        <a href={p.url} target="_blank" rel="noopener noreferrer">
+                          Learn more
+                        </a>
+                      )}
+                      {p.links?.map((l) => (
+                        <a href={l.url} target="_blank" rel="noopener noreferrer">
+                          {l.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Tag>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </div>
+</BaseLayout>
+
+<style>
+  .intro {
+    color: var(--fg-muted);
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  /* ---- VIEW TOGGLE ----
+     Two-button segmented control. Only one view is shown at a time; the
+     gallery's data-view attribute (set by the buttons) decides which. */
+  .view-toggle {
+    display: inline-flex;
+    padding: 0.2rem;
+    gap: 0.2rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-elev);
+  }
+  .view-toggle button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.9rem;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--fg-muted);
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .view-toggle button:hover {
+    background: var(--bg-hover);
+    color: var(--fg);
+  }
+  .view-toggle button[aria-pressed="true"] {
+    background: var(--fg);
+    color: var(--bg);
+  }
+  .view-toggle svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+
+  .gallery[data-view="list"] .carousel,
+  .gallery[data-view="carousel"] .project-grid {
+    display: none;
+  }
+
+  /* ---- CAROUSEL ----
+     Same mechanics as the About Wide Tim deck: a horizontal scroll-snap
+     strip with one full-width slide per project. Native scrolling gives
+     swipe / trackpad support; the script below adds arrows, dots, and
+     ← → keys. Every slide in the strip stretches to the tallest one, so
+     the controls don't jump around as you flip through. */
+  .carousel {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .carousel-track {
+    display: flex;
+    gap: 1.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    /* Stops a sideways trackpad swipe on the last slide from triggering the
+       browser's back/forward gesture. */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Photo on the left, short text on the right. Filled with the project's
+     palette color with dark text in both themes, like the About deck. */
+  .slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 2rem;
+    align-items: center;
+    min-height: 24rem;
+    padding: 1.75rem;
+    border-radius: 12px;
+    background: var(--slide-accent, #f08066);
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+  .slide-image {
+    aspect-ratio: 4 / 3;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgb(0 0 0 / 0.1);
+  }
+  .slide-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .slide-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .slide-date {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    opacity: 0.75;
+  }
+  .slide-desc {
+    margin: 0.9rem 0 0;
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+  .slide-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-top: 1.25rem;
+    font-size: 0.9rem;
+  }
+  .slide a,
+  .slide a:hover {
+    color: inherit;
+  }
+  /* Links are outlined pills that fill in on hover — the project's main
+     link ("Learn more") and any extra links alike, so a series with one
+     link per event shows them as equals. */
+  .slide-links a {
+    padding: 0.3rem 0.95rem;
+    border: 2px solid currentColor;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .slide-links a:hover {
+    background: #1a1a1a;
+    color: var(--slide-accent, #f08066);
+  }
+
+  /* No photo yet: the text takes the whole slide, centered and a bit
+     bigger so the slide doesn't look empty. */
+  .slide-noimage {
+    grid-template-columns: 1fr;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+  .slide-noimage .slide-text {
+    max-width: 34em;
+  }
+  .slide-noimage .slide-title {
+    font-size: 2.2rem;
+  }
+  .slide-noimage .slide-links {
+    justify-content: center;
+  }
+
+  /* ---- CAROUSEL CONTROLS ---- (same look as the About deck) */
+  .carousel-controls {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .carousel-nav {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--fg);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .carousel-nav:hover {
+    border-color: var(--fg);
+    background: var(--bg-hover);
+  }
+  .carousel-dots {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  /* The button is the (bigger) click target; ::before is the visible dot.
+     The current project's dot stretches into a pill in its color. */
+  .carousel-dot {
+    display: block;
+    padding: 0.6rem 0.3rem;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .carousel-dot::before {
+    content: "";
+    display: block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--fg) 25%, transparent);
+    transition: width 0.2s ease, background 0.2s ease;
+  }
+  .carousel-dot:hover::before {
+    background: color-mix(in srgb, var(--fg) 50%, transparent);
+  }
+  .carousel-dot[aria-current="true"]::before {
+    width: 1.75rem;
+    background: var(--dot-accent, var(--fg));
+  }
+  .carousel-count {
+    position: absolute;
+    right: 0;
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    font-size: 0.9rem;
+    color: var(--fg-muted);
+  }
+
+  /* ---- LIST ---- */
+  .project-grid {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.75rem;
+  }
+
+  .project-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    height: 100%;
+    text-decoration: none;
+    color: var(--fg);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem;
+    overflow: hidden;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  /* 3px accent stripe along the top — matches the home page cards. */
+  .project-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--border));
+  }
+
+  .project-card-link:hover {
+    border-color: var(--card-accent, var(--fg));
+    background: var(--bg-hover);
+    color: var(--fg);
+  }
+  .project-card-link:hover .card-title {
+    color: var(--card-ink, var(--card-accent, var(--fg)));
+  }
+
+  .card-thumb {
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .card-thumb :global(img),
+  .card-thumb :global(.placeholder-img) {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+    transition: color 0.15s ease;
+  }
+  .meta {
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  .desc {
+    margin: 0.5rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  /* No-image cards: a touch more interior padding so they don't feel
+     vertically squeezed without the image to anchor them. */
+  .project-card-noimage {
+    padding: 1.35rem;
+  }
+
+  /* Supplementary links row — shows beneath the description for any
+     project that has a `links` array. Such cards are <article>s, so these
+     links are never nested inside a card link; a project's own `url` leads
+     the row as "Learn more". */
+  .extra-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+  }
+  .extra-links a {
+    color: var(--fg-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .extra-links a:hover {
+    color: var(--link-hover);
+  }
+
+  @media (max-width: 600px) {
+    .project-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    /* Carousel: photo stacks above the text. */
+    .slide {
+      grid-template-columns: 1fr;
+      align-content: start;
+      gap: 1.1rem;
+      min-height: 20rem;
+      padding: 1.1rem;
+    }
+    .slide-noimage {
+      align-content: center;
+      padding: 1.5rem 1.25rem;
+    }
+    .slide-title {
+      font-size: 1.35rem;
+    }
+    .slide-noimage .slide-title {
+      font-size: 1.7rem;
+    }
+    .carousel-count {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  // View toggle + carousel navigation. The carousel (arrows, dots, ← → keys,
+  // swiping, and wrapping around from the last project to the first) is
+  // shared with the About Wide Tim deck.
+  import { initLoopingCarousel } from "../../scripts/loopingCarousel";
+
+  const gallery = document.querySelector<HTMLElement>("[data-gallery]");
+  if (gallery) {
+    const buttons = gallery.querySelectorAll<HTMLElement>("[data-view-btn]");
+    const carousel = initLoopingCarousel({
+      track: gallery.querySelector<HTMLElement>("[data-carousel-track]")!,
+      dots: gallery.querySelectorAll<HTMLElement>("[data-carousel-dot]"),
+      prev: gallery.querySelector<HTMLElement>("[data-carousel-prev]"),
+      next: gallery.querySelector<HTMLElement>("[data-carousel-next]"),
+      count: gallery.querySelector<HTMLElement>("[data-carousel-count]"),
+      keysActive: () => gallery.getAttribute("data-view") === "carousel",
+    });
+
+    function setView(view: string) {
+      gallery!.setAttribute("data-view", view);
+      buttons.forEach((b) =>
+        b.setAttribute("aria-pressed", b.getAttribute("data-view-btn") === view ? "true" : "false"),
+      );
+      try {
+        localStorage.setItem("projects-view", view);
+      } catch {}
+      // A hidden track loses its scroll position; put it back on the
+      // project that was showing before switching away.
+      if (view === "carousel") carousel.restore();
+    }
+    buttons.forEach((b) => b.addEventListener("click", () => setView(b.getAttribute("data-view-btn")!)));
+  }
+</script>

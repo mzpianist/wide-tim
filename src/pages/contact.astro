@@ -1,0 +1,318 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { contact } from "../content/contact";
+import { PALETTE } from "../content/palette";
+
+// Cycled per-card accent colors — same palette as the home page so the
+// contact page feels like part of the same family.
+const palette = PALETTE;
+
+// The collab callout's `trail` mentions the contact email in plain text.
+// Split the trail around that address (taken from the Email method) so the
+// template can link it; if it isn't in the text, render the trail untouched.
+const emailMethod = contact.methods.find((m) => m.url?.startsWith("mailto:"));
+const trail = contact.collabCallout?.trail ?? "";
+const emailAt = emailMethod ? trail.indexOf(emailMethod.value) : -1;
+const trailParts =
+  emailMethod && emailAt >= 0
+    ? {
+        before: trail.slice(0, emailAt),
+        after: trail.slice(emailAt + emailMethod.value.length),
+      }
+    : null;
+---
+
+<BaseLayout
+  title={contact.heading}
+  description="Get in touch with Wide Tim — collab inquiries, questions, or just to say hi."
+>
+  <h1>{contact.heading}</h1>
+  {contact.intro && <p class="intro">{contact.intro}</p>}
+
+  {
+    contact.collabCallout && (
+      <aside class="collab-callout">
+        <span class="collab-tag">Collab inquiries</span>
+        <p>
+          {contact.collabCallout.lead}{" "}
+          <a
+            href={contact.collabCallout.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            >{contact.collabCallout.linkLabel}</a
+          >{" "}
+          {trailParts && emailMethod ? (
+            <>
+              {trailParts.before}<a href={emailMethod.url}>{emailMethod.value}</a>{trailParts.after}
+            </>
+          ) : (
+            contact.collabCallout.trail
+          )}
+        </p>
+      </aside>
+    )
+  }
+
+  <ul class="contact-grid" style={`--cols: ${Math.min(contact.methods.length, 3)}`}>
+    {
+      contact.methods.map((m, i) => {
+        const accent = palette[i % palette.length];
+        const Tag = m.url ? "a" : "div";
+        // mailto: links open the mail app; target=_blank would leave an
+        // empty tab behind in some browsers.
+        const isWeb = !!m.url && !m.url.startsWith("mailto:");
+        return (
+          <li class="contact-item">
+            <Tag
+              class={`contact-card${m.url ? " contact-card-link" : ""}`}
+              href={m.url}
+              target={isWeb ? "_blank" : undefined}
+              rel={isWeb ? "noopener noreferrer" : undefined}
+              style={`--card-accent: ${accent}`}
+            >
+              <span class="contact-label">{m.label}</span>
+              <span class="contact-value">{m.value}</span>
+            </Tag>
+            {/* A button can't live inside the link, so it sits beside it and
+                is positioned over the card's bottom-right corner. */}
+            {m.copy && (
+              <>
+                <button
+                  type="button"
+                  class="copy-btn"
+                  data-copy={m.value}
+                  aria-label={`Copy ${m.label.toLowerCase()} address`}
+                >
+                  Copy
+                </button>
+                <span class="sr-only" role="status" aria-live="polite" data-copy-status />
+              </>
+            )}
+          </li>
+        );
+      })
+    }
+  </ul>
+</BaseLayout>
+
+<style>
+  .intro {
+    color: var(--fg-muted);
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .collab-callout {
+    position: relative;
+    border: 1px solid var(--border);
+    border-left: 5px solid #e8b441;
+    background: var(--bg-elev);
+    border-radius: 6px;
+    padding: 1.35rem 1.6rem;
+    margin: 0 0 2rem;
+  }
+  .collab-callout p {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    /* Keep the sentence to a comfortable reading width instead of one
+       ~95-character line across the whole box. */
+    max-width: 58ch;
+  }
+  /* Don't let the email address (or the guideline link) break mid-word,
+     e.g. "wide-" / "tim@mit.edu". */
+  .collab-callout a {
+    white-space: nowrap;
+  }
+  .collab-tag {
+    display: inline-block;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 1rem;
+    color: var(--ink-mustard);
+    margin-bottom: 0.5rem;
+  }
+  @media (max-width: 480px) {
+    .collab-callout {
+      padding: 1.1rem 1.2rem;
+    }
+    .collab-callout p {
+      font-size: 1.05rem;
+    }
+  }
+
+  .contact-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    /* One column per contact method, up to three, so two cards fill the
+       row instead of leaving an empty third slot. --cols is set from the
+       method count in the markup. */
+    grid-template-columns: repeat(var(--cols, 3), 1fr);
+    gap: 1.75rem;
+  }
+
+  .contact-item {
+    position: relative;
+  }
+
+  .contact-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 11rem;
+    padding: 1.5rem 1rem;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--fg);
+    text-decoration: none;
+    overflow: hidden;
+    transition: background 0.2s ease, border-color 0.2s ease,
+      color 0.2s ease, transform 0.2s ease;
+  }
+
+  /* 3px accent stripe across the top — matches the rest of the site. */
+  .contact-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--border));
+  }
+
+  .contact-label {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+    transition: color 0.2s ease;
+  }
+
+  .contact-value {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+    word-break: break-word;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* On hover, the whole card fills with its accent — same playful pop the
+     home page contact bar gets. Inactive (no-url) cards stay quiet. */
+  .contact-card-link:hover,
+  .contact-item:hover > .contact-card-link {
+    background: var(--card-accent);
+    border-color: var(--card-accent);
+    color: #1a1a1a;
+    transform: translateY(-2px);
+  }
+  .contact-card-link:hover .contact-label,
+  .contact-item:hover .contact-label {
+    color: #1a1a1a;
+  }
+
+  /* Small "Copy" pill (same shape as the nav's theme toggle) over the Email
+     card's bottom-right corner. It keeps its own solid page background so it
+     stays readable when the card fills with its accent color, and it lifts
+     with the card on hover so the two stay aligned. */
+  .copy-btn {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    z-index: 1;
+    height: 28px;
+    padding: 0 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease,
+      transform 0.2s ease;
+  }
+  .copy-btn:hover {
+    border-color: var(--fg);
+    background: var(--bg-hover);
+  }
+  .copy-btn:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
+  .contact-item:hover .copy-btn {
+    transform: translateY(-2px);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 720px) {
+    .contact-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+    }
+  }
+  @media (max-width: 480px) {
+    .contact-grid {
+      grid-template-columns: 1fr;
+    }
+    .contact-card {
+      min-height: 8rem;
+    }
+  }
+</style>
+
+<script>
+  // Email card "Copy" button. Copies the address, flashing "Copied" for 1.5s.
+  // If the clipboard API is unavailable or refused (insecure context,
+  // permissions), select the address text so Ctrl/Cmd+C finishes the job.
+  document.querySelectorAll<HTMLButtonElement>(".copy-btn").forEach((btn) => {
+    const item = btn.closest(".contact-item");
+    const status = item?.querySelector<HTMLElement>("[data-copy-status]");
+    const value = item?.querySelector(".contact-value");
+    let timer: number | undefined;
+
+    function flash(label: string, message: string) {
+      btn.textContent = label;
+      if (status) status.textContent = message;
+      clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        btn.textContent = "Copy";
+        if (status) status.textContent = "";
+      }, 1500);
+    }
+
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy ?? "");
+        flash("Copied", "Email address copied to clipboard");
+      } catch {
+        if (value) {
+          const range = document.createRange();
+          range.selectNodeContents(value);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+        flash("Select", "Copy failed. Address selected, press Ctrl or Command C to copy");
+      }
+    });
+  });
+</script>

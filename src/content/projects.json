@@ -1,0 +1,73 @@
+[
+  {
+    "name": "MIT 2023 Pi Reunion",
+    "date": "7.11.2026"
+  },
+  {
+    "name": "Coloring & Pie with Wide Tim",
+    "date": "3.4.2025 - 3.14.2025",
+    "description": "A two-part Artfinity series: a week and a half of coloring with Wide Tim, wrapped up with pie on Pi Day.",
+    "image": "/projects-images/coloring-and-pie-with-wide-tim.webp",
+    "imageAlt": "Kids coloring a window mural of Wide Tim",
+    "links": [
+      {
+        "label": "Coloring with Wide Tim",
+        "url": "https://artfinity.mit.edu/event/coloring-with-wide-tim"
+      },
+      {
+        "label": "Pie with Wide Tim",
+        "url": "https://artfinity.mit.edu/event/bright-spot-pie-with-wide-tim"
+      },
+      {
+        "label": "MIT News",
+        "url": "https://news.mit.edu/2025/scene-mit-artfinity-brings-artistic-celebration-campus-0325"
+      }
+    ]
+  },
+  {
+    "name": "MIT Campus Preview Weekend",
+    "date": "2022-2026",
+    "url": "https://admitted.mit.edu/cpw",
+    "description": "MIT's four-day celebration for admitted students, with over 700 events for about 1,000 visitors each April — Wide Tim first went wide at the virtual CPW in 2021 and has been part of it every year since 2022.",
+    "image": "/projects-images/cpw-2024.webp",
+    "imageAlt": "Wide Tim cutout in front of a CPW backdrop covered in Wide Tim faces"
+  },
+  {
+    "name": "Wide Tim at the COOP",
+    "date": "2024-present",
+    "url": "https://thecoop.com/pages/shop-mit",
+    "description": "Wide Tim merch, including t-shirts, has been on sale at the MIT COOP since late 2024.",
+    "image": "/projects-images/wide-tim-at-the-coop.webp",
+    "imageAlt": "A rack of green Wide Tim t-shirts at the MIT COOP under a sign reading \"@Wide_Tim is at the COOP!\""
+  },
+  {
+    "name": "MathPrize for Girls",
+    "date": "2022-2025",
+    "description": "A math competition for high school girls held at MIT. Wide Tim was part of it every fall from 2022 to 2025, down to the registration signs.",
+    "image": "/projects-images/mathprize-for-girls.webp",
+    "imageAlt": "A MathPrize for Girls registration sign featuring Wide Tim, on an easel"
+  },
+  {
+    "name": "MIT Infinite Possibilities",
+    "date": "4.27.2024",
+    "description": "Featured a Wide Tim cutout and exhibition at the Marriott Hotel.",
+    "image": "/projects-images/infinite-possibilities.webp",
+    "imageAlt": "Wide Tim cutout beside a screen showing Wide Tim sailing, at the Marriott Hotel"
+  },
+  {
+    "name": "Lunch Break with Wide Tim",
+    "date": "4.10.2024",
+    "url": "https://www.openspace.mit.edu/calendar/lunch-break-with-wide-tim",
+    "description": "An outdoor lunchtime pop-up with MIT Open Space Programming, with Wide Tim art up on the big screen.",
+    "image": "/projects-images/lunch-break-with-wide-tim.webp",
+    "imageAlt": "An MIT Open Space Programming table covered in colorful blocks on a lawn, with Wide Tim art on a large outdoor screen behind it"
+  },
+  {
+    "name": "The Beaver with the Infinite Smile",
+    "date": "2.21.2023",
+    "url": "https://www.technologyreview.com/2023/02/21/1067587/the-beaver-with-the-infinite-smile/",
+    "description": "Margaret's first-person essay for MIT Technology Review's March/April 2023 issue, on how Wide Tim grew from a welcome post for the Class of 2024 into a campus-wide character.",
+    "image": "/projects-images/the-beaver-with-the-infinite-smile.webp",
+    "imageAlt": "Margaret Zheng holding a small Wide Tim in front of a wall of Wide Tim art"
+  }
+]

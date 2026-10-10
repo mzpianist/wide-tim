@@ -1,0 +1,1353 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import {
+  collaborations,
+  collaboratorsPage,
+  formatDateShort,
+  groupByDate,
+  groupByCollaborator,
+  parseDate,
+  repeatCollaborators,
+} from "../../content/collaborators";
+import { inkFor, PALETTE } from "../../content/palette";
+
+const byDate = groupByDate(collaborations);
+const byCollaborator = groupByCollaborator(collaborations);
+const repeats = repeatCollaborators(collaborations);
+
+// Distinct years present in the data, newest first — used to render the
+// year-filter chips in the "By collaborator" view. The color each year
+// gets here matches the year's accent in the "By date" view: same index
+// into the palette, same descending order.
+const allYears = Array.from(
+  new Set(collaborations.map((c) => parseDate(c.date).year)),
+).sort((a, b) => b - a);
+const yearColor = (y: number) =>
+  palette[allYears.indexOf(y) % palette.length];
+
+// Number of unique collaborators active in each year — shown on the
+// year chip when it's the active filter, so "2026 (5)" tells you the
+// filtered list will hold 5 collaborators before you scan.
+const yearCollabCount = new Map<number, number>();
+for (const y of allYears) {
+  const names = new Set(
+    collaborations
+      .filter((c) => parseDate(c.date).year === y)
+      .map((c) => c.collaborator),
+  );
+  yearCollabCount.set(y, names.size);
+}
+
+// Shared accent palette — same six colors used across the site. Years in
+// the "By date" view cycle through these so each block has a clear color
+// identity instead of looking like one undifferentiated wall of names.
+const palette = PALETTE;
+
+// How many columns the "By date" view splits each year's months into. Two
+// columns (~430px each on the ~950px content container) leave enough room
+// for most "Name — Event" lines to stay on one line. The CSS grid in
+// `.month-grid` is hardcoded to match, so change both together.
+const MONTH_COLUMNS = 2;
+
+// Split a year's months into `columns` sequential columns balanced by event
+// count, so each column reads top-to-bottom in chronological order. Months
+// are never split across columns. Tries every valid combination of split
+// points and picks the partition with the smallest max-min event count —
+// that gives genuinely balanced columns instead of front-loading the first
+// one. (With 2 columns that is just the single split point whose two sides
+// differ least.) Years with no more months than columns place one month per
+// column from the left, leaving the trailing columns empty (so e.g. 2026's
+// Feb and May land in distinct columns rather than getting jammed together).
+type Month = (typeof byDate)[number]["months"][number];
+function partitionMonths(
+  months: Month[],
+  columns: number = MONTH_COLUMNS,
+): Month[][] {
+  const n = months.length;
+  if (n <= columns) {
+    const cols: Month[][] = Array.from({ length: columns }, () => []);
+    months.forEach((m, i) => cols[i].push(m));
+    return cols;
+  }
+
+  // prefix[k] = number of events in the first k months, so any run of
+  // months [a, b) holds prefix[b] - prefix[a] events.
+  const prefix = [0];
+  for (const m of months) prefix.push(prefix[prefix.length - 1] + m.items.length);
+
+  // `cuts` holds the start index of each column after the first. Recurse
+  // through every ascending choice of cuts, leaving at least one month for
+  // every column still to be filled, and keep the most balanced result.
+  let bestCuts: number[] = [];
+  let bestRange = Infinity;
+  const search = (cuts: number[]) => {
+    if (cuts.length === columns - 1) {
+      const bounds = [0, ...cuts, n];
+      const sizes = bounds
+        .slice(1)
+        .map((end, k) => prefix[end] - prefix[bounds[k]]);
+      const range = Math.max(...sizes) - Math.min(...sizes);
+      if (range < bestRange) {
+        bestRange = range;
+        bestCuts = cuts;
+      }
+      return;
+    }
+    const prev = cuts.length ? cuts[cuts.length - 1] : 0;
+    const cutsLeftAfter = columns - 2 - cuts.length;
+    for (let c = prev + 1; c <= n - 1 - cutsLeftAfter; c++) {
+      search([...cuts, c]);
+    }
+  };
+  search([]);
+
+  const bounds = [0, ...bestCuts, n];
+  return bounds.slice(1).map((end, k) => months.slice(bounds[k], end));
+}
+
+// "Word cloud" view: one word per collaborator, sized by how many times Wide
+// Tim has worked with them. `cloudScale` maps a count onto 0–1 for the CSS to
+// turn into a font size. It follows the square root of the count so the step
+// from 1 to 2 collaborations stays visible even when one busy collaborator
+// stretches the top of the scale.
+const maxCount = Math.max(...byCollaborator.map((g) => g.items.length));
+const cloudScale = (n: number) =>
+  maxCount > 1 ? (Math.sqrt(n) - 1) / (Math.sqrt(maxCount) - 1) : 0;
+
+// The packing script (bottom of the page) positions the words itself. Until
+// it runs, or if it can't, the words wrap like ordinary text, so this order
+// gives that fallback a cloud-ish shape: biggest first, then dealt
+// alternately to either side of the middle so the big words gather in the
+// center rows and the one-time collaborators fringe the top and bottom. Ties
+// are ordered by a hash of the name, which is stable from build to build but
+// avoids the alphabetical runs a name sort would leave.
+function nameHash(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h;
+}
+const cloudWords = (() => {
+  const ranked = [...byCollaborator].sort(
+    (a, b) =>
+      b.items.length - a.items.length ||
+      nameHash(a.collaborator) - nameHash(b.collaborator),
+  );
+  const left: typeof ranked = [];
+  const right: typeof ranked = [];
+  ranked.forEach((g, i) => (i % 2 ? left : right).push(g));
+  return [...left.reverse(), ...right];
+})();
+---
+
+<BaseLayout
+  title={collaboratorsPage.heading}
+  description="All the MIT clubs, offices, and entities Wide Tim has collaborated with since 2021."
+>
+  <h1>{collaboratorsPage.heading}</h1>
+  <p class="legend">
+    {collaborations.length} collaborations across {byCollaborator.length} groups.{" "}
+    <strong>Bold</strong> names are repeat collaborators.
+  </p>
+
+  <div class="view-tabs" role="tablist" aria-label="Collaborations view">
+    <button
+      class="view-tab"
+      role="tab"
+      id="view-tab-date"
+      aria-controls="view-panel-date"
+      aria-selected="true"
+      tabindex="0"
+      data-view-tab="date"
+    >
+      By date
+    </button>
+    <button
+      class="view-tab"
+      role="tab"
+      id="view-tab-collab"
+      aria-controls="view-panel-collab"
+      aria-selected="false"
+      tabindex="-1"
+      data-view-tab="collab"
+    >
+      By collaborator
+    </button>
+    <button
+      class="view-tab"
+      role="tab"
+      id="view-tab-cloud"
+      aria-controls="view-panel-cloud"
+      aria-selected="false"
+      tabindex="-1"
+      data-view-tab="cloud"
+    >
+      Word cloud
+    </button>
+  </div>
+
+  <section
+    class="view-panel"
+    id="view-panel-date"
+    role="tabpanel"
+    aria-labelledby="view-tab-date"
+    tabindex="0"
+    data-view-panel="date"
+  >
+    {
+      byDate.map((yearGroup, i) => {
+        const accent = palette[i % palette.length];
+        const count = yearGroup.months.reduce((n, m) => n + m.items.length, 0);
+        return (
+          <details class="year-block" open={i === 0} style={`--year-accent: ${accent}; --year-ink: ${inkFor(accent)}`}>
+            <summary class="year-head">
+              <h2 class="year-title">{yearGroup.year}</h2>
+              <span class="year-count">{count} collaboration{count === 1 ? "" : "s"}</span>
+              <span class="year-chevron" aria-hidden="true">▾</span>
+            </summary>
+            <div class="month-grid">
+              {partitionMonths(yearGroup.months).map((monthCol) => (
+                <div class="month-column">
+                  {monthCol.map((m) => (
+                    <div class="month-block">
+                      <h3 class="month-title">{m.monthLabel}</h3>
+                      <ul class="collab-list">
+                        {m.items.map((c) => {
+                          const isRepeat = repeats.has(c.collaborator);
+                          const { day } = parseDate(c.date);
+                          return (
+                            <li class="collab-item">
+                              <div class="collab-line">
+                                <span class={`collab-name${isRepeat ? " repeat" : ""}`}>
+                                  {c.collaborator}
+                                </span>
+                                {c.event && (
+                                  <>
+                                    <span class="collab-sep" aria-hidden="true">—</span>
+                                    {c.url ? (
+                                      <a
+                                        class="collab-event"
+                                        href={c.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        {c.event}
+                                      </a>
+                                    ) : (
+                                      <span class="collab-event">{c.event}</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                              {(day || c.group || c.note) && (
+                                <div class="collab-meta">
+                                  {day && <span>{m.monthLabel} {day}</span>}
+                                  {c.group && <span class="tag">{c.group}</span>}
+                                  {c.note && <span class="note">{c.note}</span>}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </details>
+        );
+      })
+    }
+  </section>
+
+  <section
+    class="view-panel"
+    id="view-panel-collab"
+    role="tabpanel"
+    aria-labelledby="view-tab-collab"
+    tabindex="0"
+    data-view-panel="collab" hidden
+  >
+    <div class="collab-toolbar">
+      <input
+        type="search"
+        class="collab-search"
+        placeholder="Search collaborators…"
+        aria-label="Search collaborators"
+        data-collab-search="true"
+      />
+      <div class="sort-toggle" role="group" aria-label="Sort collaborators">
+        <button
+          class="year-chip"
+          type="button"
+          aria-pressed="true"
+          data-sort="name"
+        >
+          A–Z
+        </button>
+        <button
+          class="year-chip"
+          type="button"
+          aria-pressed="false"
+          data-sort="count"
+        >
+          Most
+        </button>
+      </div>
+      <div class="year-chips" role="group" aria-label="Filter by year">
+        <button
+          class="year-chip"
+          type="button"
+          aria-pressed="true"
+          data-year-chip="all"
+        >
+          All
+        </button>
+        {allYears.map((y) => (
+          <button
+            class="year-chip"
+            type="button"
+            aria-pressed="false"
+            data-year-chip={String(y)}
+            style={`--chip-accent: ${yearColor(y)}; --chip-ink: ${inkFor(yearColor(y))}`}
+          >
+            {y}
+            <span class="chip-count">({yearCollabCount.get(y)})</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <p class="empty-state" data-empty-state="true" hidden>
+      No collaborators match.
+    </p>
+
+    <ul class="collab-rows">
+      {
+        byCollaborator.map((g) => {
+          const isRepeat = g.items.length > 1;
+          const rowYears = Array.from(
+            new Set(g.items.map((c) => parseDate(c.date).year)),
+          );
+          // Single lowercased search target combining collaborator, event,
+          // and date text so a query like "ring" matches the name, "may"
+          // matches month strings, "2025" matches the year, etc.
+          const searchText = [
+            g.collaborator,
+            ...g.items.map((c) => c.event ?? ""),
+            ...g.items.map((c) => formatDateShort(c.date)),
+            ...g.items.map((c) => String(parseDate(c.date).year)),
+          ]
+            .join(" ")
+            .toLowerCase();
+          return (
+            <li
+              class="collab-row"
+              data-collab-row="true"
+              data-search={searchText}
+              data-years={rowYears.join(" ")}
+              data-name={g.collaborator.toLowerCase()}
+              data-count={g.items.length}
+            >
+              <span class={`collab-row-name${isRepeat ? " repeat" : ""}`}>
+                {g.collaborator}
+                {isRepeat && (
+                  <span class="repeat-badge" aria-label={`${g.items.length} collaborations`}>
+                    ×{g.items.length}
+                  </span>
+                )}
+              </span>
+              <span class="collab-row-activities">
+                {g.items.map((c) => (
+                  <span class="activity">
+                    {c.url && !c.event ? (
+                      <a
+                        class="activity-date"
+                        href={c.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {formatDateShort(c.date)}
+                      </a>
+                    ) : (
+                      <span class="activity-date">{formatDateShort(c.date)}</span>
+                    )}
+                    {c.event && " "}
+                    {c.event && (
+                      c.url ? (
+                        <a
+                          class="activity-event"
+                          href={c.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          ({c.event})
+                        </a>
+                      ) : (
+                        <span class="activity-event">({c.event})</span>
+                      )
+                    )}
+                  </span>
+                ))}
+              </span>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </section>
+
+  <section
+    class="view-panel"
+    id="view-panel-cloud"
+    role="tabpanel"
+    aria-labelledby="view-tab-cloud"
+    tabindex="0"
+    data-view-panel="cloud" hidden
+  >
+    <p class="cloud-hint">
+      The bigger the name, the more times Wide Tim has worked with them. Hover
+      over or tap a name to see when.
+    </p>
+    <ul class="cloud">
+      {
+        cloudWords.map((g, i) => {
+          const n = g.items.length;
+          const countLabel = `${n} collaboration${n === 1 ? "" : "s"}`;
+          return (
+            <li
+              class={`cloud-word${n > 1 ? " repeat" : ""}`}
+              data-tip={countLabel}
+              style={`--t: ${cloudScale(n).toFixed(3)}; --word-color: ${palette[i % palette.length]}; --word-ink: ${inkFor(palette[i % palette.length])}`}
+            >
+              {g.collaborator}
+              <span class="sr-only">: {countLabel}</span>
+              <ul class="cloud-card">
+                {g.items.map((c) => (
+                  <li>
+                    <span class="cloud-card-date">{formatDateShort(c.date)}</span>
+                    {c.event && <span>{c.event}</span>}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+  // Segmented-tab toggle: swaps between the two view panels. Persists the
+  // active view to sessionStorage so a tab refresh keeps the user's choice.
+  (function () {
+    var tabs = document.querySelectorAll("[data-view-tab]");
+    var panels = document.querySelectorAll("[data-view-panel]");
+    if (tabs.length === 0 || panels.length === 0) return;
+
+    function show(key) {
+      tabs.forEach(function (t) {
+        var active = t.getAttribute("data-view-tab") === key;
+        t.setAttribute("aria-selected", active ? "true" : "false");
+        // Roving tabindex: only the selected tab is in the Tab order; the
+        // arrow keys (below) move between tabs.
+        t.setAttribute("tabindex", active ? "0" : "-1");
+      });
+      panels.forEach(function (p) {
+        var active = p.getAttribute("data-view-panel") === key;
+        if (active) p.removeAttribute("hidden");
+        else p.setAttribute("hidden", "");
+      });
+      try { sessionStorage.setItem("collabView", key); } catch (e) {}
+    }
+
+    var initial = "date";
+    try {
+      var saved = sessionStorage.getItem("collabView");
+      if (saved === "date" || saved === "collab" || saved === "cloud") initial = saved;
+    } catch (e) {}
+    show(initial);
+
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () {
+        show(t.getAttribute("data-view-tab"));
+      });
+      // WAI-ARIA Tabs keyboard support, with automatic activation: the
+      // arrows wrap around, Home/End jump to the ends. show() toggles the
+      // panels' hidden attribute, so the word cloud's ResizeObserver still
+      // fires and re-packs/blooms as it does for a click.
+      t.addEventListener("keydown", function (e) {
+        var list = Array.prototype.slice.call(tabs);
+        var i = list.indexOf(t);
+        var next;
+        if (e.key === "ArrowRight") next = (i + 1) % list.length;
+        else if (e.key === "ArrowLeft") next = (i - 1 + list.length) % list.length;
+        else if (e.key === "Home") next = 0;
+        else if (e.key === "End") next = list.length - 1;
+        else return;
+        e.preventDefault();
+        show(list[next].getAttribute("data-view-tab"));
+        list[next].focus();
+      });
+    });
+  })();
+
+  // Filter rows in the "By collaborator" view by name search + year chip.
+  // Each row carries `data-name` and `data-years` (space-separated) for
+  // matching. Hidden rows use the native `hidden` attribute. The visible
+  // last-row gets `data-last-visible` so CSS can suppress its bottom
+  // border without disturbing the rest of the list.
+  (function () {
+    var search = document.querySelector("[data-collab-search]");
+    var chips = document.querySelectorAll("[data-year-chip]");
+    var sortBtns = document.querySelectorAll("[data-sort]");
+    var rowsList = document.querySelector(".collab-rows");
+    var empty = document.querySelector("[data-empty-state]");
+    if (!search || !rowsList) return;
+
+    var state = { q: "", year: "all", sort: "name" };
+
+    function reorder() {
+      var arr = Array.prototype.slice.call(
+        rowsList.querySelectorAll("[data-collab-row]"),
+      );
+      if (state.sort === "count") {
+        arr.sort(function (a, b) {
+          var ca = parseInt(a.getAttribute("data-count") || "0", 10);
+          var cb = parseInt(b.getAttribute("data-count") || "0", 10);
+          if (cb !== ca) return cb - ca;
+          // Tie-breaker: alphabetical so order stays predictable when
+          // multiple collaborators have the same count.
+          return (a.getAttribute("data-name") || "").localeCompare(
+            b.getAttribute("data-name") || "",
+          );
+        });
+      } else {
+        arr.sort(function (a, b) {
+          return (a.getAttribute("data-name") || "").localeCompare(
+            b.getAttribute("data-name") || "",
+          );
+        });
+      }
+      arr.forEach(function (row) {
+        rowsList.appendChild(row);
+      });
+    }
+
+    function apply() {
+      var q = state.q.toLowerCase().trim();
+      var lastVisible = null;
+      var anyVisible = false;
+      // Iterate the live DOM so the "last visible" marker tracks the
+      // current visual order (which can change after a sort).
+      var liveRows = rowsList.querySelectorAll("[data-collab-row]");
+      for (var i = 0; i < liveRows.length; i++) {
+        var row = liveRows[i];
+        var haystack = row.getAttribute("data-search") || "";
+        var years = (row.getAttribute("data-years") || "").split(" ");
+        var matchQ = !q || haystack.indexOf(q) >= 0;
+        var matchY = state.year === "all" || years.indexOf(state.year) >= 0;
+        var visible = matchQ && matchY;
+        if (visible) row.removeAttribute("hidden");
+        else row.setAttribute("hidden", "");
+        row.removeAttribute("data-last-visible");
+        if (visible) {
+          lastVisible = row;
+          anyVisible = true;
+        }
+      }
+      if (lastVisible) lastVisible.setAttribute("data-last-visible", "true");
+      if (empty) {
+        if (anyVisible) empty.setAttribute("hidden", "");
+        else empty.removeAttribute("hidden");
+      }
+    }
+
+    search.addEventListener("input", function () {
+      state.q = search.value;
+      apply();
+    });
+
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        state.year = chip.getAttribute("data-year-chip") || "all";
+        chips.forEach(function (c) {
+          c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+        });
+        apply();
+      });
+    });
+
+    sortBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.sort = btn.getAttribute("data-sort") || "name";
+        sortBtns.forEach(function (b) {
+          b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+        });
+        reorder();
+        apply();
+      });
+    });
+  })();
+
+  // Word cloud: one word at a time is "active" (hovered with a mouse, or
+  // tapped on a touch screen), which shows its count and collaborations.
+  // Each detail card starts centered under its word and is nudged sideways
+  // if that would push it past the edge of the cloud.
+  (function () {
+    var cloud = document.querySelector(".cloud");
+    if (!cloud) return;
+    var active = null;
+
+    function deactivate() {
+      if (!active) return;
+      active.classList.remove("is-active");
+      active = null;
+    }
+
+    function activate(word) {
+      if (word === active) return;
+      deactivate();
+      active = word;
+      word.classList.add("is-active");
+      var card = word.querySelector(".cloud-card");
+      card.style.setProperty("--nudge", "0px");
+      var c = card.getBoundingClientRect();
+      var box = cloud.getBoundingClientRect();
+      var pad = 8;
+      var nudge = 0;
+      if (c.left < box.left + pad) nudge = box.left + pad - c.left;
+      else if (c.right > box.right - pad) nudge = box.right - pad - c.right;
+      card.style.setProperty("--nudge", nudge + "px");
+    }
+
+    cloud.addEventListener("pointerover", function (e) {
+      if (e.pointerType !== "mouse") return;
+      var word = e.target.closest(".cloud-word");
+      if (word) activate(word);
+    });
+    cloud.addEventListener("pointerout", function (e) {
+      if (e.pointerType !== "mouse" || !active) return;
+      if (!active.contains(e.relatedTarget)) deactivate();
+    });
+    // A tap opens a word's details; tapping anywhere else closes them.
+    cloud.addEventListener("click", function (e) {
+      var word = e.target.closest(".cloud-word");
+      if (word) activate(word);
+      else deactivate();
+    });
+    document.addEventListener("pointerdown", function (e) {
+      if (active && !cloud.contains(e.target)) deactivate();
+    });
+  })();
+
+  // Word cloud layout: packs the words into an organic blob instead of the
+  // flat-sided rows the CSS falls back to. Biggest words go first, each one
+  // walking out along a spiral from the center until it reaches a spot that
+  // overlaps nothing already placed. The spiral is stretched to the ellipse
+  // the words would roughly fill at the cloud's width, so the blob is wide
+  // on desktop and tall on phones. Re-runs when the cloud's width changes
+  // (including the first time its tab is shown) and when web fonts finish
+  // loading, since both change the words' sizes.
+  //
+  // Each time the tab is shown, the words also bloom out from the middle in
+  // that same biggest-first order (skipped for visitors who've asked their
+  // system for reduced motion).
+  (function () {
+    var cloud = document.querySelector(".cloud");
+    if (!cloud || !window.ResizeObserver) return;
+    var words = Array.prototype.slice.call(cloud.querySelectorAll(".cloud-word"));
+    var CELL = 64; // collision-grid cell size, px
+    var EDGE = 32; // room above and below the blob for the hover labels, px
+    var lastWidth = 0;
+    var order = []; // words in placement order, biggest first
+    var shown = false;
+    var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    function pack() {
+      var W = cloud.clientWidth;
+      if (!W) return; // tab hidden; the observer calls back once it's shown
+      lastWidth = W;
+
+      var boxes = words.map(function (el, i) {
+        // Horizontal breathing room grows with the word; the line height
+        // already leaves a little space above and below.
+        var h = el.offsetHeight;
+        return { el: el, i: i, w: el.offsetWidth, h: h, pad: Math.max(8, h * 0.3) };
+      });
+      boxes.sort(function (a, b) {
+        return b.h - a.h || a.i - b.i;
+      });
+
+      // Ellipse as wide as the cloud with room for every word at about 60%
+      // packing density; sx/sy stretch the spiral to match its proportions.
+      var area = 0;
+      boxes.forEach(function (b) {
+        area += (b.w + b.pad) * b.h;
+      });
+      var H = (4 * area) / (0.6 * Math.PI * W);
+      var sx = Math.max(1, W / H);
+      var sy = Math.max(1, H / W);
+
+      // Placed rectangles, bucketed by grid cell so each overlap test only
+      // looks at nearby words.
+      var grid = new Map();
+      function eachCell(r, fn) {
+        for (var gx = Math.floor(r.x / CELL); gx <= Math.floor((r.x + r.w) / CELL); gx++) {
+          for (var gy = Math.floor(r.y / CELL); gy <= Math.floor((r.y + r.h) / CELL); gy++) {
+            if (fn(gx + "," + gy)) return true;
+          }
+        }
+        return false;
+      }
+      function overlaps(r) {
+        return eachCell(r, function (key) {
+          var list = grid.get(key) || [];
+          for (var k = 0; k < list.length; k++) {
+            var o = list[k];
+            if (r.x < o.x + o.w && o.x < r.x + r.w && r.y < o.y + o.h && o.y < r.y + r.h) return true;
+          }
+          return false;
+        });
+      }
+
+      boxes.forEach(function (b, n) {
+        // Golden-angle start directions keep successive words from all
+        // drifting the same way around the spiral.
+        var start = n * 2.39996;
+        var t = 0;
+        var r = 0;
+        var rect;
+        for (var step = 0; step < 50000; step++) {
+          var x = W / 2 + r * sx * Math.cos(start + t) - b.w / 2;
+          var y = r * sy * Math.sin(start + t) - b.h / 2;
+          rect = { x: x - b.pad / 2, y: y, w: b.w + b.pad, h: b.h };
+          if (x >= 0 && x + b.w <= W && !overlaps(rect)) break;
+          // ~8px between turns, ~6px between samples along the curve.
+          t += 6 / Math.max(r, 6);
+          r = (8 * t) / (2 * Math.PI);
+        }
+        b.x = rect.x + b.pad / 2;
+        b.y = rect.y;
+        eachCell(rect, function (key) {
+          if (!grid.has(key)) grid.set(key, []);
+          grid.get(key).push(rect);
+          return false;
+        });
+      });
+
+      // Center the blob horizontally and pin its top below the label room.
+      var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      boxes.forEach(function (b) {
+        minX = Math.min(minX, b.x);
+        maxX = Math.max(maxX, b.x + b.w);
+        minY = Math.min(minY, b.y);
+        maxY = Math.max(maxY, b.y + b.h);
+      });
+      var dx = (W - (maxX - minX)) / 2 - minX;
+      cloud.classList.add("is-packed");
+      cloud.style.height = Math.ceil(maxY - minY + 2 * EDGE) + "px";
+      boxes.forEach(function (b) {
+        b.el.style.left = Math.round(b.x + dx) + "px";
+        b.el.style.top = Math.round(b.y - minY + EDGE) + "px";
+      });
+      order = boxes.map(function (b) {
+        return b.el;
+      });
+    }
+
+    // Each word starts most of the way toward the cloud's center, small and
+    // transparent, then springs out to its spot. Staggering by placement
+    // order lets the big center words land first and the small ones ripple
+    // outward after them.
+    function bloom() {
+      if (reduceMotion.matches || !cloud.animate) return;
+      var cx = cloud.clientWidth / 2;
+      var cy = cloud.clientHeight / 2;
+      order.forEach(function (el, n) {
+        var dx = (cx - (el.offsetLeft + el.offsetWidth / 2)) * 0.7;
+        var dy = (cy - (el.offsetTop + el.offsetHeight / 2)) * 0.7;
+        el.animate(
+          [
+            { transform: "translate(" + dx + "px, " + dy + "px) scale(0.3)", opacity: 0 },
+            { transform: "none", opacity: 1 },
+          ],
+          {
+            duration: 700,
+            delay: n * 8,
+            easing: "cubic-bezier(0.34, 1.4, 0.64, 1)",
+            fill: "backwards",
+          },
+        );
+      });
+    }
+
+    new ResizeObserver(function () {
+      var w = cloud.clientWidth;
+      if (!w) {
+        shown = false; // tab hidden; bloom again next time it's shown
+        return;
+      }
+      if (w !== lastWidth) pack();
+      if (!shown) {
+        shown = true;
+        bloom();
+      }
+    }).observe(cloud);
+    if (document.fonts) {
+      document.fonts.addEventListener("loadingdone", pack);
+      document.fonts.ready.then(pack);
+    }
+  })();
+</script>
+
+<style>
+  .legend {
+    color: var(--fg-muted);
+    font-size: 0.95rem;
+    margin: 0 0 1.5rem;
+  }
+  .legend strong {
+    color: var(--fg);
+  }
+
+  /* Outline shared by the page's controls (view toggle, search box, filter
+     chips): stronger than --border so they read as buttons against the
+     plain page background. */
+  .view-tabs,
+  .collab-toolbar {
+    --control-border: color-mix(in srgb, var(--fg) 25%, var(--bg));
+  }
+
+  /* Segmented control for switching between "By date" and "By collaborator". */
+  .view-tabs {
+    display: inline-flex;
+    gap: 0;
+    padding: 4px;
+    background: var(--bg);
+    border: 1.5px solid var(--control-border);
+    border-radius: 999px;
+    margin-bottom: 2rem;
+  }
+  .view-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--fg-muted);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.55rem 1.25rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .view-tab:hover {
+    color: var(--fg);
+  }
+  .view-tab[aria-selected="true"] {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* ---- "By date" view ---- */
+
+  .year-block {
+    margin-bottom: 1.5rem;
+  }
+  .year-block:last-child {
+    margin-bottom: 0;
+  }
+  /* The year header doubles as the <details> summary so the whole year
+     can be collapsed. Custom marker (chevron) replaces the browser default. */
+  .year-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid var(--year-accent, var(--border));
+    cursor: pointer;
+    list-style: none;
+  }
+  .year-head::-webkit-details-marker {
+    display: none;
+  }
+  .year-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    margin: 0;
+    color: var(--year-ink, var(--year-accent, var(--fg)));
+    line-height: 1;
+  }
+  .year-count {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 1.05rem;
+    color: var(--fg-muted);
+  }
+  .year-chevron {
+    margin-left: auto;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--year-ink, var(--year-accent, var(--fg-muted)));
+    transition: transform 0.2s ease;
+    transform: rotate(-90deg);
+  }
+  .year-block[open] .year-chevron {
+    transform: rotate(0deg);
+  }
+  /* Tiny breathing room between header and content when expanded. */
+  .year-block[open] .year-head {
+    margin-bottom: 1.25rem;
+  }
+
+  /* Two columns of months per year; keep in sync with MONTH_COLUMNS in the
+     frontmatter. Collapses to one column on narrow screens (see below). */
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem 3rem;
+  }
+  .month-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    min-width: 0;
+  }
+  .month-block {
+    break-inside: avoid;
+  }
+  /* Months take their year's accent color (set on .year-block) so each
+     year reads as one colored block. */
+  .month-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--year-ink, var(--year-accent, var(--fg-muted)));
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+    margin: 0 0 0.75rem;
+  }
+
+  /* ---- "By collaborator" view ---- */
+
+  /* Toolbar: search input + year-filter chips above the list. */
+  .collab-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    margin-bottom: 1.75rem;
+  }
+  .collab-search {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 0.55rem 0.9rem;
+    background: var(--bg);
+    border: 1.5px solid var(--control-border);
+    border-radius: 999px;
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    transition: border-color 0.15s ease;
+  }
+  .collab-search::placeholder {
+    color: var(--fg-muted);
+  }
+  .collab-search:focus {
+    outline: 0;
+    border-color: var(--fg);
+  }
+
+  .year-chips,
+  .sort-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .year-chip {
+    appearance: none;
+    border: 1.5px solid var(--control-border);
+    background: var(--bg);
+    color: var(--chip-ink, var(--chip-accent, var(--fg-muted)));
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    letter-spacing: 0.06em;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .year-chip:hover {
+    border-color: var(--chip-accent, var(--fg));
+  }
+  .year-chip[aria-pressed="true"] {
+    background: var(--chip-accent, var(--fg));
+    color: var(--bg);
+    border-color: var(--chip-accent, var(--fg));
+  }
+  /* Unique-collaborator count reveals only when the chip is active —
+     hides clutter when many chips are present, and gives a useful
+     preview of how many results the filter will produce. */
+  .chip-count {
+    display: none;
+    margin-left: 0.25rem;
+    opacity: 0.9;
+  }
+  .year-chip[aria-pressed="true"] .chip-count {
+    display: inline;
+  }
+
+  .empty-state {
+    color: var(--fg-muted);
+    font-style: italic;
+    padding: 1rem 0;
+  }
+
+  /* Each collaborator gets a single row: name in a narrower left column,
+     all their activities (date + event) in a wider left-aligned column on
+     the right, one activity per line so a long list is easy to scan. */
+  .collab-rows {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .collab-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: 1.5rem;
+    align-items: baseline;
+    padding: 0.8rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    transition: background 0.15s ease;
+  }
+  /* `display: grid` above outranks the browser default `[hidden] { display:
+     none }` on specificity, so we re-assert hiding explicitly for rows. */
+  .collab-row[hidden] {
+    display: none;
+  }
+  .collab-row:hover {
+    background: var(--bg-hover);
+  }
+  .collab-row:last-child,
+  .collab-row[data-last-visible="true"] {
+    border-bottom: 0;
+  }
+  .collab-row-name {
+    font-family: var(--font-display);
+    color: var(--fg);
+  }
+  .collab-row-name.repeat {
+    font-weight: 700;
+  }
+  /* "×N" badge on repeat collaborators — quick at-a-glance count beyond
+     the bold name signal. */
+  .repeat-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    color: var(--fg-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    vertical-align: 2px;
+  }
+  .collab-row-activities {
+    min-width: 0;
+    color: var(--fg-muted);
+  }
+  /* One activity (date + optional event) per line. */
+  .activity {
+    display: block;
+  }
+  .activity-event {
+    color: var(--fg);
+  }
+  a.activity-event {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a.activity-event:hover {
+    color: var(--link-hover);
+  }
+  /* When an entry has a URL but no event name, the date itself becomes
+     the clickable affordance. */
+  a.activity-date {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a.activity-date:hover {
+    color: var(--link-hover);
+  }
+
+  /* ---- "Word cloud" view ---- */
+
+  .cloud-hint {
+    color: var(--fg-muted);
+    font-size: 0.95rem;
+    margin: 0 0 1.25rem;
+  }
+  /* Until the packing script runs, words wrap like text, centered on every
+     line; the order set in the frontmatter puts the biggest ones in the
+     middle rows. Each word's `--t` (0–1) picks its size between
+     --cloud-min and --cloud-max. */
+  .cloud {
+    --cloud-min: 0.95rem;
+    --cloud-max: clamp(2.25rem, 6.5vw, 4rem);
+    list-style: none;
+    margin: 0;
+    /* Top room for the count label on first-row words. */
+    padding: 0.75rem 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem 1.1rem;
+  }
+  /* Once packed, the script sets the cloud's height and each word's
+     left/top. */
+  .cloud.is-packed {
+    display: block;
+    position: relative;
+    padding: 0;
+  }
+  .cloud.is-packed .cloud-word {
+    position: absolute;
+    white-space: nowrap;
+  }
+  .cloud-word {
+    position: relative;
+    font-family: var(--font-display);
+    font-size: calc(
+      var(--cloud-min) + var(--t) * (var(--cloud-max) - var(--cloud-min))
+    );
+    line-height: 1.15;
+    color: var(--word-ink, var(--word-color));
+    cursor: default;
+    transition: opacity 0.15s ease;
+  }
+  .cloud-word.repeat {
+    font-weight: 600;
+  }
+  /* Touch screens only send taps to elements that look clickable. */
+  @media (hover: none) {
+    .cloud-word {
+      cursor: pointer;
+    }
+  }
+  /* The active word (hovered, or tapped on a touch screen; see the script)
+     fades the rest, shows its count above it and its collaborations below. */
+  .cloud:has(.is-active) .cloud-word:not(.is-active) {
+    opacity: 0.3;
+  }
+  .cloud-word.is-active::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0.65rem;
+    white-space: nowrap;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--bg);
+    background: var(--fg);
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  /* Until its word is active the card is hidden the same way as .sr-only,
+     so screen readers still hear every date and event. */
+  .cloud-card {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    list-style: none;
+  }
+  /* Dates in the first column, events in the second. The script sets
+     --nudge to keep the card within the cloud's width near its edges. */
+  .cloud-word.is-active .cloud-card {
+    top: 100%;
+    left: 50%;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.2rem 0.75rem;
+    width: max-content;
+    /* On phones, the cloud's width (viewport minus 1rem gutters) minus the
+       script's 8px edge padding on each side. */
+    max-width: min(280px, calc(100vw - 3rem));
+    height: auto;
+    margin: 0.4rem 0 0;
+    padding: 0.55rem 0.8rem;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    transform: translateX(calc(-50% + var(--nudge, 0px)));
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    color: var(--bg);
+    background: var(--fg);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+    pointer-events: none;
+  }
+  .cloud-card li {
+    display: contents;
+  }
+  /* Always column one, so a collaboration with no event name doesn't pull
+     the next date up beside it. */
+  .cloud-card-date {
+    grid-column: 1;
+    white-space: nowrap;
+    opacity: 0.7;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---- Shared list item anatomy ---- */
+
+  .collab-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .collab-item {
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+  .collab-item:last-child {
+    border-bottom: 0;
+  }
+  .collab-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.95rem;
+  }
+  .collab-name {
+    color: var(--fg);
+  }
+  .collab-name.repeat {
+    font-weight: 700;
+  }
+  .collab-sep {
+    color: var(--fg-muted);
+  }
+  .collab-event {
+    color: var(--fg);
+  }
+  .collab-event.muted {
+    color: var(--fg-muted);
+  }
+  .collab-event:not(.muted) {
+    color: var(--fg);
+  }
+  a.collab-event {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a.collab-event:hover {
+    color: var(--link-hover);
+  }
+  .collab-meta {
+    margin-top: 0.3rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.05rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+  }
+  .note {
+    font-style: italic;
+  }
+
+  /* ---- Responsive ---- */
+
+  /* Below ~720px two month columns get as narrow as the old three did on
+     desktop, so drop to one. */
+  @media (max-width: 720px) {
+    .month-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+  }
+  @media (max-width: 600px) {
+    /* Three full-size tabs overflow a phone, so the control stretches to
+       the content width and the tabs get tighter. */
+    .view-tabs {
+      display: flex;
+    }
+    .view-tab {
+      flex: 1 1 auto;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+  }
+  /* The smallest phones (~320px) need a notch tighter still. */
+  @media (max-width: 360px) {
+    .view-tab {
+      padding: 0.5rem 0.4rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.02em;
+    }
+    .year-title {
+      font-size: 2rem;
+    }
+    .year-count {
+      font-size: 0.95rem;
+    }
+    /* Collaborator rows: stack the name above its activities on narrow
+       screens so neither side gets cramped. */
+    .collab-row {
+      grid-template-columns: 1fr;
+      row-gap: 0.25rem;
+    }
+  }
+</style>

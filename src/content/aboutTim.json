@@ -1,0 +1,81 @@
+{
+  "heading": "Hello World, I'm Wide Tim!",
+  "introSubheading": "Wide Tim @ a Glance",
+  "introImage": {
+    "src": "/about-page-images/intro-wide-tim.webp",
+    "alt": "Wide Tim in a red MIT sweater, surrounded by drawings of pie, ice cream, flowers, and the MIT dome"
+  },
+  "introParagraphs": [
+    "Wide Tim (<a href=\"https://www.instagram.com/wide_tim/\" target=\"_blank\" rel=\"noopener noreferrer\">@wide_tim</a> on Instagram) is a beaver character created by <a href=\"/about/creator\">Margaret Zheng (MIT '23, MEng '24)</a>.",
+    "Plump, happy, and full of life, Wide Tim's biggest dream is to spread joy, share love, and promote the arts in and out of the MIT community.",
+    "Since February 13th, 2021, he has collaborated with <a href=\"/about/collaborators\">{collaborators} MIT clubs, offices, and entities</a> to create thousands of wholesome illustrations."
+  ],
+  "aboutHeading": "The Birth of Wide Tim",
+  "aboutParagraphs": [
+    "Wide Tim is a plump, joyful {age}-year-old beaver who double majors in eating and sleeping at MIT. Aside from his jam-packed schedule of eating and sleeping, he is constantly thinking about spreading happiness, sharing love, and becoming even wider, of course.",
+    "Wide Tim made his debut on February 13th, 2021 as a piece of fan art on <a href=\"https://www.instagram.com/mitadmissions\" target=\"_blank\" rel=\"noopener noreferrer\">@mitadmissions</a> to welcome the class of 2024 onto campus during the height of COVID-19. During CP* 2021 (MIT's Virtual Campus Preview Weekend), students accidentally found out about his hidden ability to become as wide as he would like. <a href=\"https://mitadmissions.org/blogs/entry/13-theses-on-wide-tim/\" target=\"_blank\" rel=\"noopener noreferrer\">[1]</a> <a href=\"https://mitadmissions.org/blogs/entry/a-journey-to-the-w-i-d-e/\" target=\"_blank\" rel=\"noopener noreferrer\">[2]</a>."
+  ],
+  "widerHeading": "Becoming Wider",
+  "widerLeadParagraph": "Following a meme takeoff in the MIT CP* 2021 discord server, Wide Tim opened his own Instagram account to explore ways to become wider. He began this process by asking his friends about:",
+  "widerAskedAbout": [
+    "their favorite Friday night plans, lunch spots, places to study, and ice cream flavors",
+    "what classes he should take",
+    "what on-campus dance shows to go to",
+    "what events to participate in",
+    "little moments on campus that turn into core memories"
+  ],
+  "widerClosingParagraph": "Before he knew it, he had collaborated with <a href=\"/about/collaborators\">{collaborators} MIT student clubs, organizations, and offices</a>!",
+  "quotesHeading": "They Say:",
+  "quotes": [
+    {
+      "text": "\"This is Wide Tim, an adorable beaver character who loves MIT, obtaining width, and injecting some levity into MIT life. Rumor has it that Wide Tim double-majors in eating and sleeping, but his sole mission is to make people happy and smile. And by all accounts, he excels at his job.\"",
+      "attribution": "MIT News",
+      "url": "https://news.mit.edu/2022/spreading-joy-with-wide-tim-1129"
+    },
+    {
+      "text": "\"Originating from a cartoon image welcoming the Class of 2024 to campus, Wide Tim has become a widely recognized and beloved character who went on to collaborate with MIT Admissions, MIT Technology Review, and several other MIT departments.\"",
+      "attribution": "Arts at MIT",
+      "url": "https://arts.mit.edu/wiesner-student-art-award-2023/"
+    }
+  ],
+  "inPersonHeading": "Wider in Person",
+  "inPersonLeadParagraph": "Eventually, words about Wide Tim went around wide enough that he started collaborating with MIT entities for bigger (and in-person) projects. Some of them include:",
+  "inPersonBullets": [
+    "Campus Preview Weekend from 2022 through {latestCpwYear}",
+    "MIT admissions website",
+    "<a href=\"https://www.instagram.com/p/C5ZSz_COeZT/?img_index=1\" target=\"_blank\" rel=\"noopener noreferrer\">the MIT Class of 2028 Poster</a>",
+    "a mural at MIT Welcome Center",
+    "MIT Press, MIT Health, MIT Activities Committee and MISTI, as well as postcards from the MIT Chancellor's Office"
+  ],
+  "inPersonImages": [
+    {
+      "src": "/about-page-images/in-person-cpw-2024.webp",
+      "alt": "CPW 2024"
+    },
+    {
+      "src": "/about-page-images/in-person-lunchbreak-with-wide-tim.webp",
+      "alt": "Lunch Break with Wide Tim"
+    },
+    {
+      "src": "/about-page-images/in-person-inf-possibilities.webp",
+      "alt": "Infinite Possibilities"
+    },
+    {
+      "src": "/about-page-images/in-person-mp4g.webp",
+      "alt": "MathPrize 4 Girls"
+    },
+    {
+      "src": "/about-page-images/in-person-pi-w-wt-1.webp",
+      "alt": "Pie with Wide Tim"
+    },
+    {
+      "src": "/about-page-images/in-person-wt-coop.webp",
+      "alt": "Wide Tim at the COOP"
+    }
+  ],
+  "whatsNextHeading": "What's Next?",
+  "whatsNextParagraphs": [
+    "While Margaret graduated from MIT in 2024, Wide Tim is still around and has continued to engage with the community. For example, on March 14, 2025, he held a standalone art event at the MIT Welcome Center called <a href=\"https://artfinity.mit.edu/event/bright-spot-pie-with-wide-tim\" target=\"_blank\" rel=\"noopener noreferrer\">Pie with Wide Tim</a>. As of late 2024, he has also maintained a merchandise line in the <a href=\"https://thecoop.com/pages/shop-mit\" target=\"_blank\" rel=\"noopener noreferrer\">MIT COOP</a>.",
+    "Follow <a href=\"https://www.instagram.com/wide_tim/\" target=\"_blank\" rel=\"noopener noreferrer\">@wide_tim</a> for new updates and inquiries!!"
+  ]
+}
