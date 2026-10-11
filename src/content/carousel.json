@@ -1,13 +1,5 @@
 [
   {
-    "file": "wide-tim-photo-1.webp",
-    "alt": "Wide Tim, photo 1"
-  },
-  {
-    "file": "wide-tim-photo-2.webp",
-    "alt": "Wide Tim, photo 2"
-  },
-  {
     "file": "wide-tim-photo-3.webp",
     "alt": "Wide Tim, photo 3"
   },
@@ -16,8 +8,16 @@
     "alt": "Wide Tim, photo 4"
   },
   {
-    "file": "wide-tim-photo-5.webp",
-    "alt": "Wide Tim, photo 5"
+    "file": "wide-tim-photo-2.webp",
+    "alt": "Wide Tim, photo 2"
+  },
+  {
+    "file": "wide-tim-photo-10.webp",
+    "alt": "Wide Tim, photo 10"
+  },
+  {
+    "file": "wide-tim-photo-1.webp",
+    "alt": "Wide Tim, photo 1"
   },
   {
     "file": "wide-tim-photo-6.webp",
@@ -28,15 +28,15 @@
     "alt": "Wide Tim, photo 7"
   },
   {
+    "file": "wide-tim-photo-5.webp",
+    "alt": "Wide Tim, photo 5"
+  },
+  {
     "file": "wide-tim-photo-8.webp",
     "alt": "Wide Tim, photo 8"
   },
   {
     "file": "wide-tim-photo-9.webp",
     "alt": "Wide Tim, photo 9"
-  },
-  {
-    "file": "wide-tim-photo-10.webp",
-    "alt": "Wide Tim, photo 10"
   }
 ]
