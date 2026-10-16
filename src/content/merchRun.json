@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Sample sticker",
+    "price": "$3",
+    "category": "Stickers",
+    "description": "A sample item to show the layout. Replace or delete it in the editor."
+  },
+  {
+    "name": "Sample sticker pack",
+    "price": "$10",
+    "category": "Stickers",
+    "soldOut": true
+  },
+  {
+    "name": "Sample tee",
+    "price": "$25",
+    "category": "Apparel",
+    "options": ["S", "M", "L", "XL"]
+  },
+  {
+    "name": "Sample print",
+    "price": "$15",
+    "category": "Prints",
+    "options": ["8×10", "11×14"]
+  }
+]

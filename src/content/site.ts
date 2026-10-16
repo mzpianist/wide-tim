@@ -8,6 +8,7 @@
 
 import data from "./site.json";
 import { ACCENTS } from "./palette";
+import { isListed } from "./pages";
 
 export const site = data;
 
@@ -16,6 +17,8 @@ export const site = data;
 // To add a dropdown item, just add a new entry to `children`.
 // To add a top-level link, add a new entry to this array.
 // Use `external: true` for links that open off-site (e.g. the Redbubble shop).
+// Pages set to "Link only" or "Off" in pages.json are left out of the menu
+// visitors see (`visibleNav` below), so hidden pages can stay listed here.
 // -----------------------------------------------------------------------------
 
 export type NavItem = {
@@ -53,6 +56,7 @@ export const nav: NavItem[] = [
     ],
   },
   { label: "Contact", href: "/contact", accent: ACCENTS.teal },
+  { label: "Merch Run", href: "/merch-run", accent: ACCENTS.pink },
   {
     label: "Shop",
     href: "https://www.redbubble.com/people/marge-z-art/shop?artistUserName=Marge-Z-Art&collections=2480587&iaCode=all-departments&sortOrder=top%20selling",
@@ -60,3 +64,13 @@ export const nav: NavItem[] = [
     accent: ACCENTS.pink,
   },
 ];
+
+// The menu as visitors see it, without hidden pages. A section whose own
+// page is hidden links to its first shown subpage instead, and drops out
+// when none are shown.
+export const visibleNav: NavItem[] = nav.flatMap((item) => {
+  const children = item.children?.filter((c) => isListed(c.href));
+  const href = isListed(item.href) ? item.href : children?.[0]?.href;
+  if (!href) return [];
+  return [{ ...item, href, children: children?.length ? children : undefined }];
+});

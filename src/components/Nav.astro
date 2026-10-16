@@ -1,5 +1,5 @@
 ---
-import { nav, site, type NavItem } from "../content/site";
+import { visibleNav, site, type NavItem } from "../content/site";
 
 const pathname = Astro.url.pathname;
 function isActive(href: string) {
@@ -31,7 +31,7 @@ function isSectionActive(item: NavItem) {
     <nav id="site-nav" class="site-nav" aria-label="Primary">
       <ul class="nav-list">
         {
-          nav.map((item) => (
+          visibleNav.map((item) => (
             <li class={`nav-item ${item.children ? "has-children" : ""}`}>
               <a
                 href={item.href}

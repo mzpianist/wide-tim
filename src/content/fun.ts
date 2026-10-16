@@ -3,11 +3,13 @@
 // Each entry in `fun.json` becomes a card on /for-fun; edit them with the
 // local editor (`npm run editor`, or the "Wide Tim Editor" shortcut on the
 // Desktop). A card for a new little game on this site also needs a matching
-// page under src/pages/for-fun/<slug>.astro.
+// page under src/pages/for-fun/<slug>.astro. Cards linking to a page that's
+// hidden (see pages.ts) are left out.
 // =============================================================================
 
 import data from "./fun.json";
 import pageData from "./funPage.json";
+import { isListed } from "./pages";
 
 // The page's heading and intro, from `funPage.json`.
 export const funPage = pageData;
@@ -21,4 +23,4 @@ export type FunItem = {
   imageAlt?: string;
 };
 
-export const funItems: FunItem[] = data;
+export const funItems: FunItem[] = data.filter((item) => isListed(item.href));

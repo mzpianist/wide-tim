@@ -3,6 +3,7 @@ import "../styles/global.css";
 import Nav from "../components/Nav.astro";
 import Footer from "../components/Footer.astro";
 import { site } from "../content/site";
+import { visibilityOf } from "../content/pages";
 
 interface Props {
   title?: string;
@@ -10,6 +11,15 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
+
+// Hidden pages (src/content/pages.ts) ask search engines not to list them.
+// An "Off" page shows its "closed" slot instead of its content, or a general
+// "not open right now" message if it has none. In the local preview the page
+// itself still shows, with a note on top, so it can be edited before it goes
+// live; ?closed in the address swaps in what visitors get. (The dev server
+// drops query strings on static pages, so a script below does the swap.)
+const visibility = visibilityOf(Astro.url.pathname);
+const preview = import.meta.env.DEV;
 const fullTitle = title ? `${title} — ${site.title}` : site.title;
 const pageDescription = description ?? site.description;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
@@ -23,6 +33,7 @@ const ogImageUrl = new URL("/og-image.jpg", Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{fullTitle}</title>
     <meta name="description" content={pageDescription} />
+    {visibility !== "shown" && <meta name="robots" content="noindex" />}
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalUrl} />
@@ -70,8 +81,97 @@ const ogImageUrl = new URL("/og-image.jpg", Astro.site);
   <body>
     <Nav />
     <main>
-      <slot />
+      {
+        preview && visibility !== "shown" && (
+          <div class="preview-note">
+            {visibility === "link-only" ? (
+              <p>Link only: this page isn't in the menu or search engines, but anyone with the link can open it.</p>
+            ) : (
+              <Fragment>
+                <p data-preview="open">
+                  Off: visitors see a “closed” message instead of this page. <a href="?closed">See what they see</a>
+                </p>
+                <p data-preview="closed" hidden>
+                  Off: this is what visitors see instead of the page. <a href={Astro.url.pathname}>Back to the page</a>
+                </p>
+              </Fragment>
+            )}
+            <p class="preview-note-aside">Only shows in the preview on this computer.</p>
+          </div>
+        )
+      }
+      {
+        visibility === "off" && (
+          <div class="closed" data-preview="closed" hidden={preview}>
+            <img class="closed-img" src="/favicon.png" alt="" width="64" height="64" />
+            <slot name="closed">
+              <h1>Not open right now</h1>
+              <p>
+                This page is taking a break. <a href="/">Head back home</a> to see what
+                Wide Tim is up to.
+              </p>
+            </slot>
+          </div>
+        )
+      }
+      {
+        visibility !== "off" ? (
+          <slot />
+        ) : (
+          preview && (
+            <div data-preview="open">
+              <slot />
+            </div>
+          )
+        )
+      }
+      {
+        preview && visibility === "off" && (
+          <script is:inline>
+            if (new URLSearchParams(location.search).has("closed")) {
+              document.querySelectorAll("[data-preview]").forEach(function (el) {
+                el.hidden = el.dataset.preview !== "closed";
+              });
+            }
+          </script>
+        )
+      }
     </main>
     <Footer />
   </body>
 </html>
+
+<style>
+  /* Matches the 404 page. */
+  .closed {
+    text-align: center;
+    padding: 4rem 0;
+  }
+  .closed-img {
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+  }
+  .closed :global(p) {
+    color: var(--fg-body);
+    max-width: 34em;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .preview-note {
+    margin: 0 0 1.75rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px dashed var(--fg-muted);
+    border-radius: 8px;
+    color: var(--fg);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .preview-note p {
+    margin: 0;
+  }
+  .preview-note .preview-note-aside {
+    color: var(--fg-muted);
+    font-size: 0.82rem;
+  }
+</style>

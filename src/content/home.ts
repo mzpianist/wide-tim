@@ -9,11 +9,12 @@
 // accents in palette.ts (coral, teal, mustard, lavender, sky, pink), ideally
 // matching the nav button color where the link goes to the same section (see
 // `nav` in site.ts). Labels are shown uppercase; `arrow: false` hides the
-// trailing →.
+// trailing →. Bars linking to a page that's hidden (see pages.ts) are left out.
 // =============================================================================
 
 import data from "./home.json";
 import { ACCENTS } from "./palette";
+import { isListed } from "./pages";
 
 export type QuickLink = {
   label: string;
@@ -26,7 +27,7 @@ export type QuickLink = {
 export const home = {
   heading: data.heading,
   intro: data.intro, // Optional paragraph under the heading. Empty for none.
-  quickLinks: data.quickLinks.map(
-    (l): QuickLink => ({ ...l, color: ACCENTS[l.color as keyof typeof ACCENTS] ?? l.color }),
-  ),
+  quickLinks: data.quickLinks
+    .filter((l) => isListed(l.href))
+    .map((l): QuickLink => ({ ...l, color: ACCENTS[l.color as keyof typeof ACCENTS] ?? l.color })),
 };

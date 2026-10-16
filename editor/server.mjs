@@ -31,9 +31,13 @@ const NO_OPEN = process.argv.includes("--no-open");
 
 const run = promisify(execFile);
 
+// How the three page settings in pages.json are named on the Publish screen.
+const VISIBILITY = { shown: "Shown", "link-only": "Link only", off: "Off" };
+
 // The files the editor may write, each read and saved as a whole. `title`
 // names them on the Publish screen and in commit messages, and lists say how
-// to name one entry (`label`).
+// to name one entry (`label`). `changes` describes what changed in a file
+// that's neither a list nor page text.
 const DATASETS = {
   home: { file: "src/content/home.json", title: "Home page" },
   carousel: { file: "src/content/carousel.json", title: "Home background photos", label: (s) => s.alt || s.file },
@@ -53,6 +57,14 @@ const DATASETS = {
   makeAWiderTim: { file: "src/content/makeAWiderTim.json", title: "Make a Wider Tim" },
   beingWide: { file: "src/content/beingWide.json", title: "Being Wide (2024)" },
   contact: { file: "src/content/contact.json", title: "Contact" },
+  merchRun: { file: "src/content/merchRun.json", title: "Merch Run", label: (m) => m.name },
+  merchRunPage: { file: "src/content/merchRunPage.json", title: "Merch Run page" },
+  pages: {
+    file: "src/content/pages.json", title: "Page visibility",
+    changes: (before, after) => Object.keys(after)
+      .filter((page) => (before[page] ?? "shown") !== after[page])
+      .map((page) => ({ action: "update", label: `${page} → ${VISIBILITY[after[page]] ?? after[page]}` })),
+  },
   socials: { file: "src/content/socials.json", title: "Social links", label: (s) => `${s.platform} ${s.handle}` },
   site: { file: "src/content/site.json", title: "Site settings" },
 };
@@ -65,6 +77,7 @@ const PHOTO_FOLDERS = {
   about: { dir: "public/about-page-images", url: "/about-page-images/" },
   creator: { dir: "public/about-creator-images", url: "/about-creator-images/" },
   fun: { dir: "public/for-fun-images", url: "/for-fun-images/" },
+  merchRun: { dir: "public/merch-run-images", url: "/merch-run-images/" },
   carousel: { dir: "src/assets/carousel", url: "" },
 };
 const PHOTO_MAX = 1600;
@@ -228,6 +241,11 @@ async function gitChanges(paths) {
 // What changed in one data file since the last commit, in plain words.
 async function describe(name) {
   const ds = DATASETS[name];
+  if (ds.changes) {
+    const before = parse(name, await git(["show", `HEAD:${ds.file}`]).catch(() => "")) ?? {};
+    const lines = ds.changes(before, (await load(name)).data).map((c) => ({ title: ds.title, ...c }));
+    return lines.length ? lines : [{ title: ds.title, action: "tidy", label: "formatting" }];
+  }
   if (!ds.label) return [{ title: ds.title, action: "update", label: "text" }];
   const before = parse(name, await git(["show", `HEAD:${ds.file}`]).catch(() => "")) ?? [];
   const after = (await load(name)).data;

@@ -124,6 +124,10 @@
       .nav-item:hover { background: var(--bg-hover); }
       .nav-item[aria-current="page"] { background: var(--bg-hover); border-left-color: var(--fill); font-weight: 600; }
       .nav-item .count { color: var(--fg-muted); font-size: 0.8rem; font-weight: 400; }
+      .vis-tag {
+        margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px;
+        font-size: 0.72rem; font-weight: 600; color: var(--fg-muted); white-space: nowrap; vertical-align: 1px;
+      }
       @media (max-width: 820px) {
         .layout { grid-template-columns: 1fr; gap: 16px; }
         .sidebar { position: static; gap: 10px; }
@@ -281,8 +285,33 @@
         display: grid; place-items: center; font-size: 0.7rem; color: var(--fg-muted);
       }
       .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .link-mark {
+        flex: none; margin-right: 4px; padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px;
+        font-size: 0.8rem; font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap;
+      }
+      .link-mark:hover { background: var(--bg-hover); }
       .move { display: flex; gap: 4px; padding-right: 4px; }
+      /* An entry's form opens right under its row. */
+      .list li.form-row { display: block; border-bottom: none; }
+      .list li.form-row .form { margin: 8px 0 20px; }
       .empty { color: var(--fg-muted); padding: 24px 0; }
+
+      /* ---------- Page visibility ---------- */
+      .vis-switch { display: inline-flex; flex: none; padding: 2px; gap: 2px; border: 1px solid var(--border); border-radius: 999px; }
+      .vis-switch button {
+        border: none; background: none; border-radius: 999px; padding: 3px 12px;
+        font-size: 0.85rem; font-weight: 600; color: var(--fg-muted); white-space: nowrap;
+      }
+      .vis-switch button:hover { background: var(--bg-hover); color: var(--fg); }
+      .vis-switch button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+      .vis-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 10px 0 4px; }
+      .vis-bar .muted { font-size: 0.88rem; }
+      .vis-legend { margin: 8px 0 4px; padding-left: 18px; font-size: 0.93rem; }
+      .vis-legend li { margin: 2px 0; }
+      .vis-list li { gap: 12px; padding: 8px 8px; flex-wrap: wrap; }
+      .vis-list .what { flex: 1 1 180px; min-width: 0; }
+      .vis-list .name { color: var(--fg); font-weight: 600; }
+      .vis-list .below { display: block; color: var(--fg-muted); font-size: 0.85rem; }
 
       /* ---------- Publish dialog ---------- */
       dialog {
@@ -526,6 +555,7 @@
             when: (r) => { const m = parseMonth(r.month); return m ? `${SHORT[m - 1]}${r.day ? " " + r.day : ""}` : "—"; },
             title: (r) => r.collaborator,
             inline: (r) => r.event,
+            link: (r) => r.url,
           },
         },
         press: {
@@ -546,7 +576,7 @@
           list: {
             search: (p) => [p.source, p.title, p.date, p.excerpt],
             sort: (a, b) => (b.date || "").localeCompare(a.date || ""),
-            when: (p) => p.date || "—", title: (p) => p.title, below: (p) => p.source,
+            when: (p) => p.date || "—", title: (p) => p.title, below: (p) => p.source, link: (p) => p.url,
           },
         },
         projects: {
@@ -576,7 +606,7 @@
                 { key: "url", label: "Link", type: "url", required: true, span: 4 },
               ] },
           ],
-          list: { reorder: true, search: (p) => [p.name, p.date, p.description], thumb: (p) => photoSrc(p.image), title: (p) => p.name, below: (p) => p.date },
+          list: { reorder: true, search: (p) => [p.name, p.date, p.description], thumb: (p) => photoSrc(p.image), title: (p) => p.name, below: (p) => p.date, link: (p) => p.url },
         },
         fun: {
           kind: "list", group: "For Fun", label: "For Fun page", accent: "sky", page: "/for-fun",
@@ -638,6 +668,45 @@
               ] },
           ],
         },
+        merchRun: {
+          kind: "list", group: "Merch Run", label: "Merch Run", accent: "pink", page: "/merch-run",
+          intro: "The catalog for the pop-up merch shop, in this order. On the site, items are grouped under their category.",
+          pageText: { data: "merchRunPage", fields: [
+            { key: "heading", label: "Page title", required: true },
+            { key: "intro", label: "Intro", type: "textarea" },
+            { key: "when", label: "When", span: 2, placeholder: "Oct 24–26" },
+            { key: "where", label: "Where", span: 2, placeholder: "Lobby 10" },
+            { key: "payment", label: "How to pay", span: 2, placeholder: "Cash or Venmo" },
+            { heading: "While the page is Off" },
+            { key: "closedHeading", label: "Closed title", required: true },
+            { key: "closedText", label: "Closed message", type: "html", hint: HTML_HINT },
+          ] },
+          noun: "item",
+          blank: () => ({}),
+          fields: [
+            { key: "name", label: "Item name", required: true, span: 4 },
+            { key: "price", label: "Price", required: true, span: 2, placeholder: "$5",
+              hint: "As it should appear, e.g. $5 or 3 for $10." },
+            { key: "category", label: "Category", span: 3, placeholder: "Stickers",
+              suggest: (d) => d.merchRun.data.map((m) => m.category),
+              hint: "Optional. Items are grouped under these, in the order they first appear." },
+            { key: "soldOut", label: "Sold out", type: "checkbox", span: 3 },
+            { key: "description", label: "Description", type: "textarea", hint: "Optional. A line or two." },
+            { key: "options", label: "Options", type: "strings", itemType: "text", itemNoun: "option",
+              hint: "Optional. Sizes, colors or designs, e.g. S, M, L. Shown as small tags." },
+            { key: "image", label: "Photo", type: "photo", folder: "merchRun", nameFrom: "name" },
+            { key: "imageAlt", label: "Photo description", hint: "What's in the photo, for people using screen readers." },
+          ],
+          list: {
+            reorder: true, search: (m) => [m.name, m.price, m.category, m.description],
+            thumb: (m) => photoSrc(m.image), title: (m) => m.name, inline: (m) => m.price,
+            below: (m) => [m.category, m.soldOut && "Sold out"].filter(Boolean).join(" · "),
+          },
+        },
+        pages: {
+          kind: "visibility", group: "Every page", label: "Show & hide pages", accent: "mustard", page: "/",
+          intro: "Hide a page without deleting it, like the Merch Run outside its few days a year. Each page also has this switch at the top of its own screen.",
+        },
         socials: {
           kind: "list", group: "Every page", label: "Social links (footer)", accent: "mustard", page: "/",
           intro: "Social links in the footer of every page.",
@@ -661,7 +730,17 @@
           ],
         },
       };
-      const GROUPS = ["Home", "About", "For Fun", "Contact", "Every page"];
+      const GROUPS = ["Home", "About", "For Fun", "Contact", "Merch Run", "Every page"];
+
+      // The three settings in pages.json (see src/content/pages.ts). Every
+      // section with a page of its own, other than the home page, has one.
+      const VISIBILITY = [
+        ["shown", "Shown", "In the menu, like any page."],
+        ["link-only", "Link only", "Not in the menu or search engines, but anyone with the link (or a QR code) can open it."],
+        ["off", "Off", "Visitors see a “closed” message instead of the page."],
+      ];
+      const VIS_NAME = Object.fromEntries(VISIBILITY.map(([v, name]) => [v, name]));
+      const VIS_ABOUT = Object.fromEntries(VISIBILITY.map(([v, , about]) => [v, about]));
 
       // ---------- State ----------
 
@@ -705,7 +784,9 @@
       }
 
       // Saves a whole data file. On success, offers to undo by saving the old version back.
-      async function saveData(name, data, message, { undoable = true } = {}) {
+      async function saveData(name, data, message, {
+        undoable = true, view = SECTIONS[state.tab].page, afterUndo = () => { state.form = null; render(); },
+      } = {}) {
         const ds = state.data[name];
         const before = ds.data;
         try {
@@ -713,8 +794,8 @@
           ds.data = data;
           ds.version = version;
           toast(message, {
-            undo: undoable ? () => saveData(name, before, "Undone.", { undoable: false }).then(() => { state.form = null; render(); }) : null,
-            view: state.data.preview + SECTIONS[state.tab].page,
+            undo: undoable ? () => saveData(name, before, "Undone.", { undoable: false, view }).then(afterUndo) : null,
+            view: state.data.preview + view,
           });
           refreshPublish();
           return true;
@@ -755,10 +836,13 @@
         fill(panel, 
           h("div", { class: "panel-head" },
             h("h2", {}, sec.label),
-            h("a", { class: "page-link", href: state.data.preview + sec.page, target: "_blank", rel: "noopener" }, "View page ↗")),
+            sec.kind !== "visibility" &&
+              h("a", { class: "page-link", href: state.data.preview + sec.page, target: "_blank", rel: "noopener" }, "View page ↗")),
+          hideable(sec) && visibilityBar(sec),
           sec.intro && h("p", { class: "section-intro" }, sec.intro),
           h("p", { class: "file-note" }, "Saves to ", h("code", {}, ds.file),
             sec.pageText && [" and ", h("code", {}, state.data[sec.pageText.data].file)]),
+          sec.kind === "visibility" && visibilityOverview(),
           sec.pageText && pageTextCard(sec),
           sec.kind === "list" && h("div", { class: "toolbar" },
             h("button", { class: "btn btn-primary", onclick: () => openEntry(-1) }, `+ New ${sec.noun}`),
@@ -767,7 +851,7 @@
               "aria-label": `Search ${sec.label.toLowerCase()}`, value: state.query,
               oninput: (e) => { state.query = e.target.value; renderList(); },
             })),
-          h("div", { id: "form-host" }),
+          h("div", { id: "form-top" }, h("div", { id: "form-host" })),
           sec.kind === "list" && h("div", { id: "list-host" }),
         );
         renderForm();
@@ -782,8 +866,68 @@
               h("button", {
                 class: "nav-item", "data-accent": s.accent, "aria-current": key === state.tab ? "page" : null,
                 onclick: () => switchTab(key),
-              }, s.label, s.kind === "list" && h("span", { class: "count" }, state.data[key].data.length)))),
+              },
+              h("span", {}, s.label, hideable(s) && visibilityOf(s) !== "shown" && h("span", { class: "vis-tag" }, VIS_NAME[visibilityOf(s)])),
+              s.kind === "list" && h("span", { class: "count" }, state.data[key].data.length)))),
           )));
+      }
+
+      // ---------- Page visibility ----------
+
+      const hideable = (sec) => sec.page !== "/";
+      const visibilityOf = (sec) => state.data.pages.data[sec.page] ?? "shown";
+
+      // Shown | Link only | Off. Saves as soon as one is picked.
+      function visibilitySwitch(sec) {
+        const current = visibilityOf(sec);
+        return h("div", { class: "vis-switch", role: "group", "aria-label": `Who can see ${sec.label}` },
+          VISIBILITY.map(([v, name]) => h("button", {
+            type: "button", "aria-pressed": String(v === current), "data-vis": `${sec.page} ${v}`, onclick: () => setVisibility(sec, v),
+          }, name)));
+      }
+
+      // The switch at the top of a page's own screen.
+      function visibilityBar(sec) {
+        return h("div", { class: "vis-bar", id: "vis-bar" }, visibilitySwitch(sec),
+          h("span", { class: "muted" }, VIS_ABOUT[visibilityOf(sec)]));
+      }
+
+      // The "Show & hide pages" screen: every page's switch, grouped like the site.
+      function visibilityOverview() {
+        const pages = Object.values(SECTIONS).filter(hideable);
+        return [
+          h("ul", { class: "vis-legend" }, VISIBILITY.map(([, name, about]) => h("li", {}, h("strong", {}, name), ": ", about))),
+          h("p", { class: "muted" }, "The home page is always shown. Like any change, these go live when you Publish."),
+          GROUPS.filter((g) => pages.some((s) => s.group === g)).map((group) =>
+            h("section", { "data-accent": pages.find((s) => s.group === group).accent },
+              h("h3", { class: "year" }, group),
+              h("ul", { class: "list vis-list" }, pages.filter((s) => s.group === group).map((s) => h("li", {},
+                h("span", { class: "what" },
+                  h("a", { class: "name", href: state.data.preview + s.page, target: "_blank", rel: "noopener" }, s.label),
+                  h("span", { class: "below" }, s.page)),
+                visibilitySwitch(s)))))),
+        ];
+      }
+
+      async function setVisibility(sec, value) {
+        if (visibilityOf(sec) === value) return;
+        const data = { ...state.data.pages.data, [sec.page]: value };
+        if (await saveData("pages", data, `${sec.label}: ${VIS_NAME[value]}.`, { view: sec.page, afterUndo: refreshVisibility })) {
+          refreshVisibility();
+        }
+      }
+
+      // Redraws the switches and sidebar tags, leaving any open form as it
+      // is, and keeps the keyboard focus on the button that was pressed.
+      function refreshVisibility() {
+        const sec = SECTIONS[state.tab];
+        const focused = document.activeElement?.dataset?.vis;
+        if (sec.kind === "visibility") render();
+        else {
+          renderNav();
+          $("#vis-bar")?.replaceWith(visibilityBar(sec));
+        }
+        if (focused) document.querySelector(`[data-vis="${focused}"]`)?.focus();
       }
 
       function switchTab(key) {
@@ -806,33 +950,51 @@
         let rows = items.map((r, index) => ({ r, index })).filter(({ r }) => matches(q, ...cfg.search(r)));
         if (cfg.sort) rows.sort((a, b) => cfg.sort(a.r, b.r));
         const host = $("#list-host");
+        // The open form sits under its row, or up top for a new entry, the
+        // page text, or an entry the search is hiding. Moving the same element
+        // keeps whatever's been typed into it.
+        const formHost = $("#form-host");
+        let placed = false;
+
+        const row = ({ r, index }) => {
+          const link = cfg.link?.(r);
+          const li = h("li", {},
+            h("button", { class: `row${state.form?.index === index ? " active" : ""}`, "data-index": index, onclick: () => openEntry(index) },
+              cfg.when && h("span", { class: "when" }, cfg.when(r)),
+              cfg.thumb && h("span", { class: "thumb" }, cfg.thumb(r) ? h("img", { src: cfg.thumb(r), alt: "", loading: "lazy" }) : "No photo"),
+              h("span", { class: "what" },
+                h("span", { class: "name" }, cfg.title(r) || "(untitled)"),
+                cfg.inline?.(r) && h("span", { class: "inline" }, cfg.inline(r)),
+                cfg.below?.(r) && h("span", { class: "below" }, cfg.below(r)))),
+            link && h("a", {
+              class: "link-mark", href: link.startsWith("/") ? state.data.preview + link : link, target: "_blank", rel: "noopener",
+              title: link, "aria-label": `Open the link for ${cfg.title(r) || "this entry"}`,
+            }, "Link ↗"),
+            cfg.reorder && !q && h("span", { class: "move" },
+              h("button", { class: "icon-btn", "aria-label": `Move ${cfg.title(r)} up`, title: "Move up", disabled: index === 0, onclick: () => moveEntry(index, -1) }, "↑"),
+              h("button", { class: "icon-btn", "aria-label": `Move ${cfg.title(r)} down`, title: "Move down", disabled: index === items.length - 1, onclick: () => moveEntry(index, 1) }, "↓")),
+          );
+          if (state.form?.index !== index) return li;
+          placed = true;
+          return [li, h("li", { class: "form-row" }, formHost)];
+        };
+
         if (!rows.length) {
-          return fill(host, h("p", { class: "empty" }, q ? "Nothing matches that search." : `No ${sec.label.toLowerCase()} yet.`));
+          fill(host, h("p", { class: "empty" }, q ? "Nothing matches that search." : `No ${sec.label.toLowerCase()} yet.`));
+        } else if (!cfg.groupBy) {
+          fill(host, h("ul", { class: "list" }, rows.map(row)));
+        } else {
+          const groups = new Map();
+          for (const x of rows) {
+            const g = cfg.groupBy(x.r);
+            if (!groups.has(g)) groups.set(g, []);
+            groups.get(g).push(x);
+          }
+          fill(host, ...[...groups].map(([g, list]) => h("section", {},
+            h("h3", { class: "year" }, g, h("span", { class: "sr-only" }, `, ${plural(list.length, "entry", "entries")}`)),
+            h("ul", { class: "list" }, list.map(row)))));
         }
-
-        const row = ({ r, index }) => h("li", {},
-          h("button", { class: `row${state.form?.index === index ? " active" : ""}`, onclick: () => openEntry(index) },
-            cfg.when && h("span", { class: "when" }, cfg.when(r)),
-            cfg.thumb && h("span", { class: "thumb" }, cfg.thumb(r) ? h("img", { src: cfg.thumb(r), alt: "", loading: "lazy" }) : "No photo"),
-            h("span", { class: "what" },
-              h("span", { class: "name" }, cfg.title(r) || "(untitled)"),
-              cfg.inline?.(r) && h("span", { class: "inline" }, cfg.inline(r)),
-              cfg.below?.(r) && h("span", { class: "below" }, cfg.below(r)))),
-          cfg.reorder && !q && h("span", { class: "move" },
-            h("button", { class: "icon-btn", "aria-label": `Move ${cfg.title(r)} up`, title: "Move up", disabled: index === 0, onclick: () => moveEntry(index, -1) }, "↑"),
-            h("button", { class: "icon-btn", "aria-label": `Move ${cfg.title(r)} down`, title: "Move down", disabled: index === items.length - 1, onclick: () => moveEntry(index, 1) }, "↓")),
-        );
-
-        if (!cfg.groupBy) return fill(host, h("ul", { class: "list" }, rows.map(row)));
-        const groups = new Map();
-        for (const x of rows) {
-          const g = cfg.groupBy(x.r);
-          if (!groups.has(g)) groups.set(g, []);
-          groups.get(g).push(x);
-        }
-        fill(host, ...[...groups].map(([g, list]) => h("section", {},
-          h("h3", { class: "year" }, g, h("span", { class: "sr-only" }, `, ${plural(list.length, "entry", "entries")}`)),
-          h("ul", { class: "list" }, list.map(row)))));
+        if (!placed) $("#form-top").append(formHost);
       }
 
       // The page's own heading/intro, shown above a list with an Edit button.
@@ -894,21 +1056,36 @@
         const sec = SECTIONS[state.tab];
         const record = index === "page" ? state.data[sec.pageText.data].data : index < 0 ? sec.blank() : state.data[state.tab].data[index];
         state.form = newForm(index, structuredClone(record));
+        // Closing another entry's form above this row would pull the row up;
+        // put it back where it was clicked.
+        const top = rowFor(index)?.getBoundingClientRect().top;
         renderForm();
         renderList();
         const form = $("#form-host .form");
-        form.scrollIntoView({ behavior: "smooth", block: "start" });
+        const row = rowFor(index);
+        if (row && top != null) {
+          window.scrollBy(0, row.getBoundingClientRect().top - top);
+          // Scroll just enough to show the whole form, without losing the row.
+          const below = form.getBoundingClientRect().bottom + 16 - window.innerHeight;
+          if (below > 0) window.scrollBy({ top: Math.min(below, row.getBoundingClientRect().top - 16), behavior: "smooth" });
+        } else {
+          form.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
         form.querySelector("input, textarea, select")?.focus({ preventScroll: true });
       }
+
+      const rowFor = (index) => (typeof index === "number" && index >= 0 ? $(`.row[data-index="${index}"]`) : null);
 
       function openPage() {
         state.form = newForm(null, structuredClone(state.data[state.tab].data));
       }
 
       function closeEntry() {
+        const { index } = state.form;
         state.form = null;
         renderForm();
         renderList();
+        rowFor(index)?.focus({ preventScroll: true });
       }
 
       // ---------- Rendering forms ----------
@@ -1372,6 +1549,8 @@
         if (await saveData(state.tab, items, f.index < 0 ? `Added “${name}”.` : `Saved “${name}”.`)) {
           state.form = null;
           render();
+          // A new date can move an entry; keep it in view.
+          rowFor(f.index)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       }
 
