@@ -593,8 +593,9 @@ const cloudWords = (() => {
 
   // Word cloud: one word at a time is "active" (hovered with a mouse, or
   // tapped on a touch screen), which shows its count and collaborations.
-  // Each detail card starts centered under its word and is nudged sideways
-  // if that would push it past the edge of the cloud.
+  // The count label and the detail card start centered on their word and
+  // are each nudged sideways if that would push them past the edge of the
+  // cloud.
   (function () {
     var cloud = document.querySelector(".cloud");
     if (!cloud) return;
@@ -611,15 +612,25 @@ const cloudWords = (() => {
       deactivate();
       active = word;
       word.classList.add("is-active");
+      var box = cloud.getBoundingClientRect();
+      var pad = 8;
+      function fit(left, right) {
+        if (left < box.left + pad) return box.left + pad - left;
+        if (right > box.right - pad) return box.right - pad - right;
+        return 0;
+      }
+
       var card = word.querySelector(".cloud-card");
       card.style.setProperty("--nudge", "0px");
       var c = card.getBoundingClientRect();
-      var box = cloud.getBoundingClientRect();
-      var pad = 8;
-      var nudge = 0;
-      if (c.left < box.left + pad) nudge = box.left + pad - c.left;
-      else if (c.right > box.right - pad) nudge = box.right - pad - c.right;
-      card.style.setProperty("--nudge", nudge + "px");
+      card.style.setProperty("--nudge", fit(c.left, c.right) + "px");
+
+      // The count label is the word's ::after, which has no bounding rect of
+      // its own, but its computed width is its rendered width.
+      var w = word.getBoundingClientRect();
+      var tipWidth = parseFloat(getComputedStyle(word, "::after").width) || 0;
+      var tipLeft = w.left + w.width / 2 - tipWidth / 2;
+      word.style.setProperty("--tip-nudge", fit(tipLeft, tipLeft + tipWidth) + "px");
     }
 
     cloud.addEventListener("pointerover", function (e) {
@@ -688,7 +699,7 @@ const cloudWords = (() => {
       });
       var H = (4 * area) / (0.6 * Math.PI * W);
       var sx = Math.max(1, W / H);
-      var sy = Math.max(1, H / W);
+      var sy = 1;
 
       // Placed rectangles, bucketed by grid cell so each overlap test only
       // looks at nearby words.
@@ -1119,11 +1130,14 @@ const cloudWords = (() => {
     gap: 0.4rem 1.1rem;
   }
   /* Once packed, the script sets the cloud's height and each word's
-     left/top. */
+     left/top. The script also keeps each label and card inside the cloud's
+     width, so clipping at its sides never hides anything; it just stops a
+     card from widening the page for the moment before it's nudged in. */
   .cloud.is-packed {
     display: block;
     position: relative;
     padding: 0;
+    overflow-x: clip;
   }
   .cloud.is-packed .cloud-word {
     position: absolute;
@@ -1143,6 +1157,11 @@ const cloudWords = (() => {
   .cloud-word.repeat {
     font-weight: 600;
   }
+  /* The site-wide light-mode mustard ink reads olive in a cloud of bright
+     words, so the cloud uses a livelier gold (~3.5:1 on the page bg). */
+  :global(:root[data-theme="light"]) .cloud {
+    --ink-mustard: #b37700;
+  }
   /* Touch screens only send taps to elements that look clickable. */
   @media (hover: none) {
     .cloud-word {
@@ -1159,7 +1178,9 @@ const cloudWords = (() => {
     position: absolute;
     bottom: 100%;
     left: 50%;
-    transform: translateX(-50%);
+    /* The script sets --tip-nudge to keep the label within the cloud's
+       width near its edges. */
+    transform: translateX(calc(-50% + var(--tip-nudge, 0px)));
     margin-bottom: 0.3rem;
     padding: 0.2rem 0.65rem;
     white-space: nowrap;
@@ -1328,6 +1349,9 @@ const cloudWords = (() => {
       padding: 0.5rem 0.85rem;
       font-size: 0.9rem;
       white-space: nowrap;
+    }
+    .cloud {
+      --cloud-min: 0.85rem;
     }
   }
   /* The smallest phones (~320px) need a notch tighter still. */
