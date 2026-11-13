@@ -1526,7 +1526,7 @@
       // that gets printed, drawn by the editor's server) and buttons that
       // save print-ready PDFs into promo/print.
 
-      const promo = { form: null, el: null, stage: null, note: null, timer: 0, seq: 0 };
+      const promo = { form: null, el: null, stage: null, note: null, sheet: null, timer: 0, seq: 0 };
       const PREVIEW_MAX = { width: 300, height: 430 };
 
       // The preview column for the open form. It's built once per form and
@@ -1545,22 +1545,29 @@
         const one = h("button", { class: "btn btn-primary", type: "button", onclick: () => make([state.form.draft.size]) }, "Make PDF at this size");
         const all = h("button", { class: "btn", type: "button", onclick: () => make(PROMO_SIZES.map(([v]) => v)) }, `Make PDFs at all ${PROMO_SIZES.length} sizes`);
 
-        async function make(sizes) {
+        // Several copies on one A4 page, to print at home and cut out. Its
+        // label says how many fit, once the preview knows.
+        const sheet = promo.sheet = h("button", { class: "btn", type: "button", hidden: true, onclick: () => make([state.form.draft.size], true) });
+        const buttons = [one, all, sheet];
+
+        async function make(sizes, onSheet = false) {
           const design = state.form.draft;
           if (!String(design.name ?? "").trim()) return toast("Give the design a name first; the files are named after it.", { bad: true });
-          one.disabled = all.disabled = true;
-          status.textContent = sizes.length > 1 ? "Making the print files… a few seconds each." : `Making the ${sizeName()} print file…`;
+          for (const b of buttons) b.disabled = true;
+          status.textContent = onSheet ? "Making the A4 sheet…"
+            : sizes.length > 1 ? "Making the print files… a few seconds each." : `Making the ${sizeName()} print file…`;
           try {
-            const { files, cmyk } = await api("POST", "/api/promo/export", { design, sizes, bleed: bleed.checked });
+            const { files, cmyk } = await api("POST", "/api/promo/export", { design, sizes, bleed: bleed.checked, sheet: onSheet });
             fill(status,
               `Saved ${files.length === 1 ? files[0].split("/").pop() : plural(files.length, "PDF")} in promo/print`,
               cmyk ? " (CMYK). " : " (still RGB: the CMYK converter, Ghostscript, wasn't found. Ask Claude.) ",
+              onSheet && "Print it at 100% (“actual size”, not “fit to page”), then cut along the marks. ",
               h("button", { type: "button", onclick: () => api("POST", "/api/promo/reveal", { file: files[0] }).catch((err) => toast(err.message, { bad: true })) }, "Show in Finder"));
           } catch (err) {
             status.textContent = "";
             toast(err.message, { bad: true });
           }
-          one.disabled = all.disabled = false;
+          for (const b of buttons) b.disabled = false;
         }
 
         promo.el = h("aside", { class: "promo-side", "aria-label": "Preview and print files" },
@@ -1571,7 +1578,7 @@
             h("span", { class: "label" }, "Print files"),
             h("label", { class: "check" }, bleed, "Add bleed for a print shop"),
             h("p", { class: "hint" }, "Bleed is an extra ⅛ in of background on every side that gets trimmed off. Untick it to print at home."),
-            one, all, status));
+            one, all, sheet, status));
         return promo.el;
       }
 
@@ -1602,6 +1609,8 @@
             stage.style.height = `${hgt * scale}px`;
             frame.style.visibility = "visible";
             promo.note.textContent = page.photoNote ?? "";
+            promo.sheet.hidden = !page.perSheet;
+            promo.sheet.textContent = `Make an A4 sheet of ${page.perSheet} to cut out`;
           });
           frame.srcdoc = page.html;
           stage.append(frame);

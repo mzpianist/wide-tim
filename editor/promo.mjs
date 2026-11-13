@@ -48,6 +48,79 @@ export function trimSize(design) {
   return design.orientation === "landscape" ? { w: h, h: w } : { w, h };
 }
 
+// The paper that several small cards are printed on, to cut out by hand.
+const SHEET = { ...SIZES.a4, label: "A4" };
+// Cut marks: how long they are, and how far they stay from the artwork.
+const MARK = { length: 0.16, gap: 0.05, margin: 0.25 };
+// White space between neighboring cards on a sheet, so each print sits on
+// its own with a border around it instead of touching the next one.
+const SHEET_GAP = 0.25;
+
+// How many copies of a design fit on one A4 sheet, each with its bleed, and
+// which way round the sheet goes to fit the most. null if it doesn't fit
+// (an A4 design is already the whole sheet).
+export function sheetLayout(design) {
+  const trim = trimSize(design);
+  const cell = { w: trim.w + 2 * BLEED, h: trim.h + 2 * BLEED };
+  const room = 2 * (MARK.margin + MARK.gap + MARK.length);
+  const fit = (w, h) => {
+    const cols = Math.floor((w - room + SHEET_GAP) / (cell.w + SHEET_GAP));
+    const rows = Math.floor((h - room + SHEET_GAP) / (cell.h + SHEET_GAP));
+    return { w, h, cols, rows, count: Math.max(cols, 0) * Math.max(rows, 0), cell };
+  };
+  const tall = fit(SHEET.w, SHEET.h);
+  const wide = fit(SHEET.h, SHEET.w);
+  const best = wide.count > tall.count ? wide : tall;
+  return best.count > 0 ? best : null;
+}
+
+// An A4 page holding as many copies of the card page (`src`) as fit, with
+// cut marks in the margins lined up with each card's finished edge.
+function renderSheet(layout, src) {
+  const { w, h, cols, rows, cell } = layout;
+  const step = { x: cell.w + SHEET_GAP, y: cell.h + SHEET_GAP };
+  const block = { w: cols * step.x - SHEET_GAP, h: rows * step.y - SHEET_GAP };
+  const x0 = (w - block.w) / 2;
+  const y0 = (h - block.h) / 2;
+  const box = (left, top, width, height) => `left:${left}in;top:${top}in;width:${width}in;height:${height}in`;
+  const cards = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) cards.push(`<iframe src="${esc(src)}" style="${box(x0 + c * step.x, y0 + r * step.y, cell.w, cell.h)}"></iframe>`);
+  }
+  const thick = 0.007; // half a point
+  const marks = [];
+  const before = MARK.gap + MARK.length;
+  for (let c = 0; c < cols; c++) {
+    for (const x of [x0 + c * step.x + BLEED, x0 + c * step.x + cell.w - BLEED]) {
+      for (const y of [y0 - before, y0 + block.h + MARK.gap]) marks.push(box(x - thick / 2, y, thick, MARK.length));
+    }
+  }
+  for (let r = 0; r < rows; r++) {
+    for (const y of [y0 + r * step.y + BLEED, y0 + r * step.y + cell.h - BLEED]) {
+      for (const x of [x0 - before, x0 + block.w + MARK.gap]) marks.push(box(x, y - thick / 2, MARK.length, thick));
+    }
+  }
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@page { size: ${w}in ${h}in; margin: 0; }
+* { margin: 0; padding: 0; }
+html, body { width: ${w}in; height: ${h}in; overflow: hidden; background: #fff; }
+body { position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+iframe, i { position: absolute; border: 0; }
+i { background: #000; }
+</style>
+</head>
+<body>
+${cards.join("\n")}
+${marks.map((m) => `<i style="${m}"></i>`).join("")}
+</body>
+</html>
+`;
+}
+
 // paper/ink: the background and main text. hi: the highlight fill (tags,
 // bullets), hiInk: text on it, hiText: highlight-colored text on the paper.
 function theme({ background = "dark", accent = "coral" }) {
@@ -279,44 +352,61 @@ const findGhostscript = () =>
   findProgram([...(process.env.PATH ?? "").split(":"), "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).map((d) => path.join(d, "gs")));
 
 // Saves one PDF per size into promo/print/, named <baseName>-<size>.pdf.
+// With `sheet`, each PDF is instead an A4 page of as many copies as fit,
+// with cut marks (an A4 design is skipped: it is the whole sheet).
 // Returns { files, cmyk }; cmyk is false if Ghostscript is missing, in which
 // case the PDFs are left in RGB.
-export async function exportPromo(design, { sizes, bleed = true, baseName = "promo" }) {
+export async function exportPromo(design, { sizes, bleed = true, sheet = false, baseName = "promo" }) {
   const chrome = await findChrome();
   if (!chrome) throw Object.assign(new Error("Making print files needs Google Chrome, and it isn't in the Applications folder."), { status: 500 });
   const gs = await findGhostscript();
   const outDir = path.join(ROOT, PRINT_DIR);
   await mkdir(outDir, { recursive: true });
   const tmp = await mkdtemp(path.join(tmpdir(), "wide-tim-promo-"));
+
+  // Chrome lays the page out as a PDF, then Ghostscript converts it to CMYK.
+  // `trimBox` (in points) tells a print shop where the finished edge is.
+  async function print(html, name, trimBox) {
+    const rgb = path.join(tmp, `${name}.rgb.pdf`);
+    await run(chrome, [
+      "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--allow-file-access-from-files",
+      `--user-data-dir=${path.join(tmp, "chrome")}`, "--virtual-time-budget=20000",
+      `--print-to-pdf=${rgb}`, pathToFileURL(html).href,
+    ], { timeout: 90_000 });
+    const out = path.join(outDir, name);
+    if (gs) {
+      await run(gs, [
+        "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite", "-dPDFSETTINGS=/prepress", "-dCompatibilityLevel=1.6",
+        "-sColorConversionStrategy=CMYK", "-dProcessColorModel=/DeviceCMYK", "-dFirstPage=1", "-dLastPage=1",
+        `-sOutputFile=${out}`, ...(trimBox ? ["-c", `[/TrimBox [${trimBox.map((n) => n.toFixed(2)).join(" ")}] /PAGES pdfmark`] : []), "-f", rgb,
+      ], { timeout: 120_000 });
+    } else {
+      await copyFile(rgb, out);
+    }
+    files.push(path.join(PRINT_DIR, name));
+  }
+
   const files = [];
   try {
     for (const size of sizes.filter((s) => Object.hasOwn(SIZES, s))) {
       const sized = { ...design, size };
-      const html = path.join(tmp, `${size}.html`);
-      const rgb = path.join(tmp, `${size}-rgb.pdf`);
-      await writeFile(html, await renderPromo(sized, { bleed, forPrint: true }));
-      await run(chrome, [
-        "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--allow-file-access-from-files",
-        `--user-data-dir=${path.join(tmp, "chrome")}`, "--virtual-time-budget=20000",
-        `--print-to-pdf=${rgb}`, pathToFileURL(html).href,
-      ], { timeout: 90_000 });
-
-      const name = [baseName, size, design.orientation === "landscape" && "landscape", bleed && "with-bleed"].filter(Boolean).join("-") + ".pdf";
-      const out = path.join(outDir, name);
-      if (gs) {
-        // The TrimBox tells the print shop where the finished edge is.
+      const parts = [baseName, size, design.orientation === "landscape" && "landscape"];
+      const card = path.join(tmp, `${size}.html`);
+      if (sheet) {
+        // Cards on a sheet always carry their bleed, so a cut that's a
+        // little off still lands on artwork.
+        const layout = sheetLayout(sized);
+        if (!layout) continue;
+        await writeFile(card, await renderPromo(sized, { bleed: true, forPrint: true }));
+        const page = path.join(tmp, `${size}-sheet.html`);
+        await writeFile(page, renderSheet(layout, `${size}.html`));
+        await print(page, [...parts, `${layout.count}-on-a4`].filter(Boolean).join("-") + ".pdf");
+      } else {
+        await writeFile(card, await renderPromo(sized, { bleed, forPrint: true }));
         const trim = trimSize(sized);
         const b = bleed ? BLEED * 72 : 0;
-        const box = [b, b, b + trim.w * 72, b + trim.h * 72].map((n) => n.toFixed(2)).join(" ");
-        await run(gs, [
-          "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite", "-dPDFSETTINGS=/prepress", "-dCompatibilityLevel=1.6",
-          "-sColorConversionStrategy=CMYK", "-dProcessColorModel=/DeviceCMYK", "-dFirstPage=1", "-dLastPage=1",
-          `-sOutputFile=${out}`, "-c", `[/TrimBox [${box}] /PAGES pdfmark`, "-f", rgb,
-        ], { timeout: 120_000 });
-      } else {
-        await copyFile(rgb, out);
+        await print(card, [...parts, bleed && "with-bleed"].filter(Boolean).join("-") + ".pdf", [b, b, b + trim.w * 72, b + trim.h * 72]);
       }
-      files.push(path.join(PRINT_DIR, name));
     }
   } finally {
     await rm(tmp, { recursive: true, force: true });

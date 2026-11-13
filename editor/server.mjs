@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import sharp from "sharp";
 import { parseCsv, parseCsvRecords, stringifyCsv } from "../src/content/csv.ts";
-import { BLEED, PROMO_DIR, PRINT_DIR, trimSize, photoFile, renderPromo, exportPromo } from "./promo.mjs";
+import { BLEED, PROMO_DIR, PRINT_DIR, trimSize, sheetLayout, photoFile, renderPromo, exportPromo } from "./promo.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = 4400;
@@ -421,8 +421,8 @@ async function deployStatus(sha) {
 // Designs for print (see promo.mjs). Everything lives in promo/, which git
 // ignores: print files and full-size photos don't belong in the public repo.
 
-// The page for the editor's preview, plus a warning if the photo is too
-// small to print sharply at this size.
+// The page for the editor's preview, a warning if the photo is too small to
+// print sharply at this size, and how many copies fit on an A4 sheet.
 async function promoPreview(design) {
   if (!design || typeof design !== "object") throw httpError(400, "No design to show.");
   const trim = trimSize(design);
@@ -441,12 +441,12 @@ async function promoPreview(design) {
       photoNote = "Couldn't find that photo.";
     }
   }
-  return { html: await renderPromo(design), width: trim.w, height: trim.h, photoNote };
+  return { html: await renderPromo(design), width: trim.w, height: trim.h, photoNote, perSheet: sheetLayout(design)?.count ?? 0 };
 }
 
-async function promoExport({ design, sizes, bleed }) {
+async function promoExport({ design, sizes, bleed, sheet }) {
   if (!design || typeof design !== "object" || !Array.isArray(sizes)) throw httpError(400, "No design to print.");
-  const result = await exportPromo(design, { sizes, bleed: bleed !== false, baseName: slugify(str(design.name) || "promo") });
+  const result = await exportPromo(design, { sizes, bleed: bleed !== false, sheet: sheet === true, baseName: slugify(str(design.name) || "promo") });
   return { ...result, bleed: BLEED };
 }
 
