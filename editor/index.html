@@ -30,6 +30,8 @@
         --fill-lavender: #a896d8;
         --fill-sky: #5fb3e0;
         --fill-pink: #ec84a3;
+        --fill-dark: #0d0d0d;
+        --fill-cream: #faf7f0;
         --ink-coral: #f08066;
         --ink-teal: #4dbeb0;
         --ink-mustard: #e8b441;
@@ -313,6 +315,25 @@
       .vis-list .name { color: var(--fg); font-weight: 600; }
       .vis-list .below { display: block; color: var(--fg-muted); font-size: 0.85rem; }
 
+      /* ---------- Promo materials ---------- */
+      .form-split { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+      .promo-side { position: sticky; top: 16px; display: grid; gap: 10px; justify-items: start; min-width: 0; }
+      .promo-side .label { font-weight: 600; color: var(--fg); font-size: 0.9rem; }
+      .promo-side .hint { margin: 0; }
+      .promo-stage {
+        position: relative; overflow: hidden; width: 300px; min-height: 120px;
+        border: 1px solid var(--border); background: var(--bg-hover);
+      }
+      .promo-frame { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
+      .promo-print { display: grid; gap: 8px; justify-items: start; border-top: 1px solid var(--border); padding-top: 12px; width: 100%; }
+      .promo-print .check { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--fg); }
+      .promo-print .btn { width: 100%; }
+      .promo-status button { background: none; border: none; padding: 0; text-decoration: underline; color: var(--ink); font-weight: 600; }
+      @media (max-width: 980px) {
+        .form-split { grid-template-columns: 1fr; }
+        .promo-side { position: static; }
+      }
+
       /* ---------- Publish dialog ---------- */
       dialog {
         width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto;
@@ -422,6 +443,7 @@
         if (!value) return "";
         if (/^https?:\/\//.test(value)) return value;
         if (folder === "carousel") return "/carousel/" + value;
+        if (value.startsWith("/promo-files/")) return value;
         return "/public" + (value.startsWith("/") ? value : "/" + value);
       }
 
@@ -429,13 +451,23 @@
       const URL_ERROR = "Use a full link (https://…), a page on this site (/about/press) or an email (mailto:…).";
       const ACCENTS = ["coral", "teal", "mustard", "lavender", "sky", "pink"];
       const HTML_HINT = "To link some words, select them and click Add link.";
+      const ACCENT_OPTIONS = ACCENTS.map((a) => [a, a[0].toUpperCase() + a.slice(1)]);
+      // The print sizes in editor/promo.mjs.
+      const PROMO_SIZES = [["3x5", "3 × 5 in"], ["4x6", "4 × 6 in"], ["5x7", "5 × 7 in"], ["a4", "A4 (8.27 × 11.69 in)"]];
+      const PROMO_LAYOUTS = [
+        ["photo-top", "Photo on top, words below"],
+        ["full-photo", "Photo all over, words on top of it"],
+        ["big-type", "Big words, photo in a frame"],
+      ];
 
       // ---------- What can be edited ----------
       // One section per page of the site, grouped and ordered like the site's
       // own menu (and colored like it). Each section is one data file:
       // "list" sections hold entries edited one at a time, and may also have
       // `pageText` (the page's heading and intro, in a file of their own);
-      // "page" sections are one form. `fields` drive the forms: `key` may be a
+      // "page" sections are one form. A `local` section isn't part of the
+      // website (no page to view, nothing to publish), and `preview` gives
+      // its forms the promo preview and print buttons. `fields` drive the forms: `key` may be a
       // dotted path, `span` is out of 6 columns, and entries with `heading` or
       // `note` just add text to the form.
 
@@ -453,7 +485,7 @@
                 { key: "href", label: "Link", type: "url", required: true, span: 3 },
                 { key: "external", label: "Opens in a new tab", type: "checkbox", span: 2 },
                 { key: "color", label: "Color", type: "select", required: true, span: 2, swatch: true,
-                  options: ACCENTS.map((a) => [a, a[0].toUpperCase() + a.slice(1)]) },
+                  options: ACCENT_OPTIONS },
                 { key: "arrow", label: "Show the → arrow", type: "checkbox", defaultOn: true, span: 2 },
               ] },
           ],
@@ -719,6 +751,55 @@
           ],
           list: { reorder: true, search: (s) => [s.platform, s.handle], title: (s) => s.platform, below: (s) => s.handle },
         },
+        promo: {
+          kind: "list", group: "Print", label: "Promo materials", accent: "teal", local: true, preview: true,
+          intro: "Flyers, posters and cards to print. Open a design to change it and see it at any size, then make print-ready CMYK PDFs. " +
+            "Everything here stays in the promo folder on this computer: it isn't part of the website, so Publish leaves it alone.",
+          noun: "design",
+          blank: () => ({
+            size: "5x7", orientation: "portrait", layout: "photo-top", headlineFont: "chunky", background: "dark", accent: "coral",
+            textSize: "normal", qrUrl: "https://widetim.com", qrCaption: "widetim.com",
+          }),
+          fields: [
+            { key: "name", label: "Design name", required: true, hint: "Just for you. The print files are named after it." },
+            { heading: "Paper & look" },
+            { key: "size", label: "Size", type: "select", required: true, span: 3, options: PROMO_SIZES,
+              hint: "The size in the preview. Any design can be printed at every size." },
+            { key: "orientation", label: "Direction", type: "select", required: true, span: 3,
+              options: [["portrait", "Tall (portrait)"], ["landscape", "Wide (landscape)"]] },
+            { key: "layout", label: "Layout", type: "select", required: true, span: 3, options: PROMO_LAYOUTS },
+            { key: "headlineFont", label: "Headline lettering", type: "select", required: true, span: 3,
+              options: [["chunky", "Chunky (like the home page)"], ["tall", "Tall (like page titles)"]] },
+            { key: "background", label: "Background", type: "select", required: true, span: 2, swatch: true,
+              options: [["dark", "Dark"], ["cream", "Cream"], ...ACCENT_OPTIONS] },
+            { key: "accent", label: "Highlight", type: "select", required: true, span: 2, swatch: true, options: ACCENT_OPTIONS,
+              hint: "Tags and bullets, on a dark or cream background." },
+            { key: "textSize", label: "Text size", type: "select", required: true, span: 2,
+              options: [["small", "Smaller"], ["normal", "Normal"], ["large", "Larger"]] },
+            { heading: "Words" },
+            { key: "eyebrow", label: "Tag", hint: "Optional. A short line in a pill above the headline." },
+            { key: "headline", label: "Headline", type: "textarea", required: true,
+              hint: "Press Return to choose where the lines break. It shrinks to fit." },
+            { key: "body", label: "Text", type: "textarea", hint: "Optional. A sentence or two." },
+            { key: "details", label: "Details", type: "strings", itemType: "text", itemNoun: "detail",
+              hint: "Optional. Short bold lines, like a date, a place or a handle." },
+            { key: "footer", label: "Small print", hint: "Optional. A quiet last line." },
+            { heading: "Photo" },
+            { key: "photo", label: "Photo or artwork", type: "photo", folder: "promo", nameFrom: "name",
+              photoHint: "Use the biggest version you have: it's kept at full size for printing (in promo/photos). " +
+                "To borrow a photo from the site, type its path, like /projects-images/cpw-2024.webp." },
+            { key: "photoFocus", label: "Keep in view", type: "select",
+              options: [["center", "The middle"], ["top", "The top"], ["bottom", "The bottom"], ["left", "The left side"], ["right", "The right side"]],
+              hint: "Which part of the photo stays when it's cropped to fit." },
+            { heading: "QR code" },
+            { key: "qrUrl", label: "QR code link", type: "url", span: 4, hint: "Optional. Leave blank for no QR code." },
+            { key: "qrCaption", label: "Under the code", span: 2 },
+          ],
+          list: {
+            reorder: true, search: (d) => [d.name, d.headline, d.body], title: (d) => d.name,
+            below: (d) => [PROMO_SIZES, PROMO_LAYOUTS].map((opts, i) => opts.find(([v]) => v === (i ? d.layout : d.size))?.[1]).filter(Boolean).join(" · "),
+          },
+        },
         site: {
           kind: "page", group: "Every page", label: "Site name & description", accent: "mustard", page: "/",
           intro: "The name and description used across the whole site.",
@@ -730,7 +811,7 @@
           ],
         },
       };
-      const GROUPS = ["Home", "About", "For Fun", "Contact", "Merch Run", "Every page"];
+      const GROUPS = ["Home", "About", "For Fun", "Contact", "Merch Run", "Every page", "Print"];
 
       // The three settings in pages.json (see src/content/pages.ts). Every
       // section with a page of its own, other than the home page, has one.
@@ -785,7 +866,7 @@
 
       // Saves a whole data file. On success, offers to undo by saving the old version back.
       async function saveData(name, data, message, {
-        undoable = true, view = SECTIONS[state.tab].page, afterUndo = () => { state.form = null; render(); },
+        undoable = true, view = SECTIONS[state.tab].page ?? null, afterUndo = () => { state.form = null; render(); },
       } = {}) {
         const ds = state.data[name];
         const before = ds.data;
@@ -795,7 +876,7 @@
           ds.version = version;
           toast(message, {
             undo: undoable ? () => saveData(name, before, "Undone.", { undoable: false, view }).then(afterUndo) : null,
-            view: state.data.preview + view,
+            view: view && state.data.preview + view,
           });
           refreshPublish();
           return true;
@@ -836,7 +917,7 @@
         fill(panel, 
           h("div", { class: "panel-head" },
             h("h2", {}, sec.label),
-            sec.kind !== "visibility" &&
+            sec.kind !== "visibility" && !sec.local &&
               h("a", { class: "page-link", href: state.data.preview + sec.page, target: "_blank", rel: "noopener" }, "View page ↗")),
           hideable(sec) && visibilityBar(sec),
           sec.intro && h("p", { class: "section-intro" }, sec.intro),
@@ -874,7 +955,7 @@
 
       // ---------- Page visibility ----------
 
-      const hideable = (sec) => sec.page !== "/";
+      const hideable = (sec) => !sec.local && sec.page !== "/";
       const visibilityOf = (sec) => state.data.pages.data[sec.page] ?? "shown";
 
       // Shown | Link only | Off. Saves as soon as one is picked.
@@ -1100,6 +1181,8 @@
         const isNew = f.index === -1;
         const isPageText = f.index === "page";
         const fields = formFields();
+        const grid = h("div", { class: "grid" }, renderFields(fields, []));
+        const withPreview = sec.preview && !isPageText;
 
         fill(host, 
           h("form", {
@@ -1115,7 +1198,7 @@
                     h("button", { class: "btn btn-danger btn-small", type: "button", onclick: deleteEntry }, "Yes, delete"),
                     h("button", { class: "btn btn-small", type: "button", onclick: () => { f.confirmDelete = false; renderForm(); } }, "Keep it"))
                 : h("button", { class: "btn btn-danger btn-small", type: "button", onclick: () => { f.confirmDelete = true; renderForm(); } }, "Delete"))),
-            h("div", { class: "grid" }, renderFields(fields, [])),
+            withPreview ? h("div", { class: "form-split" }, grid, promoSide()) : grid,
             isPage
               ? h("div", { class: "save-bar", id: "save-bar" },
                   h("span", { class: "status", id: "save-status" }),
@@ -1128,6 +1211,7 @@
         );
         updateDirtyUI();
         for (const field of fields) if (field.assist) updateAssist(field);
+        if (withPreview) refreshPromoPreview();
       }
 
       function updateDirtyUI() {
@@ -1146,6 +1230,7 @@
         set(state.form.draft, path, value);
         delete state.form.errors[path.join(".")];
         updateDirtyUI();
+        if (SECTIONS[state.tab].preview) refreshPromoPreview();
       }
 
       function renderFields(fields, base) {
@@ -1344,7 +1429,7 @@
               placeholder: field.folder === "carousel" ? "photo.webp" : "/folder/photo.webp or https://…",
               onchange: (e) => { setValue(path, e.target.value.trim()); renderForm(); },
             }),
-            h("div", { class: "hint" }, "Any size is fine: photos are resized and saved into the site for you."),
+            h("div", { class: "hint" }, field.photoHint ?? "Any size is fine: photos are resized and saved into the site for you."),
           ),
           fileInput,
         );
@@ -1434,6 +1519,93 @@
           );
         }
         fill(el, "New collaborator.");
+      }
+
+      // ---------- Promo materials ----------
+      // A promo design's form has a live preview beside it (the same page
+      // that gets printed, drawn by the editor's server) and buttons that
+      // save print-ready PDFs into promo/print.
+
+      const promo = { form: null, el: null, stage: null, note: null, timer: 0, seq: 0 };
+      const PREVIEW_MAX = { width: 300, height: 430 };
+
+      // The preview column for the open form. It's built once per form and
+      // reused when the form redraws, so the preview doesn't blink.
+      function promoSide() {
+        if (promo.form === state.form) return promo.el;
+        promo.form = state.form;
+        promo.stage = h("div", { class: "promo-stage" });
+        promo.note = h("p", { class: "hint", "aria-live": "polite" });
+        const status = h("p", { class: "hint promo-status", "aria-live": "polite" });
+        const bleed = h("input", {
+          type: "checkbox", checked: storageGet("promo-bleed") !== "off",
+          onchange: (e) => storageSet("promo-bleed", e.target.checked ? "on" : "off"),
+        });
+        const sizeName = () => PROMO_SIZES.find(([v]) => v === state.form.draft.size)?.[1] ?? "this size";
+        const one = h("button", { class: "btn btn-primary", type: "button", onclick: () => make([state.form.draft.size]) }, "Make PDF at this size");
+        const all = h("button", { class: "btn", type: "button", onclick: () => make(PROMO_SIZES.map(([v]) => v)) }, `Make PDFs at all ${PROMO_SIZES.length} sizes`);
+
+        async function make(sizes) {
+          const design = state.form.draft;
+          if (!String(design.name ?? "").trim()) return toast("Give the design a name first; the files are named after it.", { bad: true });
+          one.disabled = all.disabled = true;
+          status.textContent = sizes.length > 1 ? "Making the print files… a few seconds each." : `Making the ${sizeName()} print file…`;
+          try {
+            const { files, cmyk } = await api("POST", "/api/promo/export", { design, sizes, bleed: bleed.checked });
+            fill(status,
+              `Saved ${files.length === 1 ? files[0].split("/").pop() : plural(files.length, "PDF")} in promo/print`,
+              cmyk ? " (CMYK). " : " (still RGB: the CMYK converter, Ghostscript, wasn't found. Ask Claude.) ",
+              h("button", { type: "button", onclick: () => api("POST", "/api/promo/reveal", { file: files[0] }).catch((err) => toast(err.message, { bad: true })) }, "Show in Finder"));
+          } catch (err) {
+            status.textContent = "";
+            toast(err.message, { bad: true });
+          }
+          one.disabled = all.disabled = false;
+        }
+
+        promo.el = h("aside", { class: "promo-side", "aria-label": "Preview and print files" },
+          h("span", { class: "label" }, "Preview"),
+          promo.stage,
+          promo.note,
+          h("div", { class: "promo-print" },
+            h("span", { class: "label" }, "Print files"),
+            h("label", { class: "check" }, bleed, "Add bleed for a print shop"),
+            h("p", { class: "hint" }, "Bleed is an extra ⅛ in of background on every side that gets trimmed off. Untick it to print at home."),
+            one, all, status));
+        return promo.el;
+      }
+
+      // Redraws the preview from the form as it is now, shortly after the
+      // last change. The new page is swapped in once it has laid itself out.
+      function refreshPromoPreview() {
+        clearTimeout(promo.timer);
+        promo.timer = setTimeout(async () => {
+          const form = state.form;
+          if (!form || promo.form !== form) return;
+          const seq = ++promo.seq;
+          let page;
+          try { page = await api("POST", "/api/promo/preview", { design: form.draft }); } catch { return; }
+          if (seq !== promo.seq || promo.form !== form) return;
+          const { stage } = promo;
+          const w = page.width * 96;
+          const hgt = page.height * 96;
+          const scale = Math.min(PREVIEW_MAX.width / w, PREVIEW_MAX.height / hgt);
+          const frame = h("iframe", {
+            class: "promo-frame", title: "Preview of the design", tabindex: "-1", scrolling: "no",
+            style: `width:${w}px;height:${hgt}px;transform:scale(${scale});visibility:hidden`,
+          });
+          frame.addEventListener("load", async () => {
+            for (let i = 0; i < 40 && !frame.contentDocument?.documentElement.dataset.ready; i++) await new Promise((r) => setTimeout(r, 50));
+            if (seq !== promo.seq) return frame.remove();
+            for (const old of stage.querySelectorAll("iframe")) if (old !== frame) old.remove();
+            stage.style.width = `${w * scale}px`;
+            stage.style.height = `${hgt * scale}px`;
+            frame.style.visibility = "visible";
+            promo.note.textContent = page.photoNote ?? "";
+          });
+          frame.srcdoc = page.html;
+          stage.append(frame);
+        }, 200);
       }
 
       // ---------- Checking & saving ----------
@@ -1634,7 +1806,7 @@
       // Follows the GitHub deploy for a pushed commit until it's live (or the dialog closes).
       async function watchDeploy(sha) {
         const run = ++deployRun;
-        const live = "https://widetim.com" + SECTIONS[state.tab].page;
+        const live = "https://widetim.com" + (SECTIONS[state.tab].page ?? "/");
         for (let i = 0; i < 60 && run === deployRun && dialog.open; i++) {
           let s;
           try { s = await api("GET", `/api/deploy?sha=${sha}`); } catch { s = { available: false }; }

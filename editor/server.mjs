@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import sharp from "sharp";
 import { parseCsv, parseCsvRecords, stringifyCsv } from "../src/content/csv.ts";
+import { BLEED, PROMO_DIR, PRINT_DIR, trimSize, photoFile, renderPromo, exportPromo } from "./promo.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = 4400;
@@ -37,7 +38,8 @@ const VISIBILITY = { shown: "Shown", "link-only": "Link only", off: "Off" };
 // The files the editor may write, each read and saved as a whole. `title`
 // names them on the Publish screen and in commit messages, and lists say how
 // to name one entry (`label`). `changes` describes what changed in a file
-// that's neither a list nor page text.
+// that's neither a list nor page text. `local` files stay on this computer:
+// they aren't part of the website, so Publish never touches them.
 const DATASETS = {
   home: { file: "src/content/home.json", title: "Home page" },
   carousel: { file: "src/content/carousel.json", title: "Home background photos", label: (s) => s.alt || s.file },
@@ -67,11 +69,13 @@ const DATASETS = {
   },
   socials: { file: "src/content/socials.json", title: "Social links", label: (s) => `${s.platform} ${s.handle}` },
   site: { file: "src/content/site.json", title: "Site settings" },
+  promo: { file: `${PROMO_DIR}/designs.json`, title: "Promo materials", label: (d) => d.name, local: true },
 };
 
 // Where uploaded photos go, one folder per page. Photos are resized to fit
 // inside PHOTO_MAX and saved as WebP. `url` is how the data files refer to a
-// photo; carousel slides use the bare filename.
+// photo; carousel slides use the bare filename. Promo photos are for print,
+// so they're kept much bigger, as JPEGs, and (like all of promo/) stay local.
 const PHOTO_FOLDERS = {
   projects: { dir: "public/projects-images", url: "/projects-images/" },
   about: { dir: "public/about-page-images", url: "/about-page-images/" },
@@ -79,6 +83,7 @@ const PHOTO_FOLDERS = {
   fun: { dir: "public/for-fun-images", url: "/for-fun-images/" },
   merchRun: { dir: "public/merch-run-images", url: "/merch-run-images/" },
   carousel: { dir: "src/assets/carousel", url: "" },
+  promo: { dir: `${PROMO_DIR}/photos`, url: "/promo-files/photos/", max: 6000, format: "jpg", local: true },
 };
 const PHOTO_MAX = 1600;
 
@@ -98,7 +103,11 @@ function parse(name, text) {
 }
 
 async function load(name) {
-  const text = await readFile(path.join(ROOT, DATASETS[name].file), "utf8");
+  // A local file may not exist yet (promo/ isn't in git): start it empty.
+  const text = await readFile(path.join(ROOT, DATASETS[name].file), "utf8").catch((err) => {
+    if (DATASETS[name].local && err.code === "ENOENT") return "[]\n";
+    throw err;
+  });
   return { data: parse(name, text), version: hash(text) };
 }
 
@@ -137,6 +146,7 @@ async function save(name, data, version) {
     throw httpError(400, "That doesn't look like the right kind of data for this file.");
   }
   const text = await serialize(name, data);
+  await mkdir(path.dirname(path.join(ROOT, DATASETS[name].file)), { recursive: true });
   await writeAtomic(path.join(ROOT, DATASETS[name].file), text);
   return { version: hash(text) };
 }
@@ -159,7 +169,7 @@ function slugify(s) {
 
 const exists = (p) => access(p).then(() => true, () => false);
 
-// Saves an uploaded photo as <folder>/<name>.webp. Replacing an entry's own
+// Saves an uploaded photo as <folder>/<name>.webp (.jpg for promo). Replacing an entry's own
 // photo reuses its filename; otherwise a name already taken by another photo
 // gets a -2, -3, ... suffix rather than being overwritten.
 async function savePhoto({ folder, name, currentImage, dataUrl }) {
@@ -173,18 +183,23 @@ async function savePhoto({ folder, name, currentImage, dataUrl }) {
   const dir = path.join(ROOT, target.dir);
   await mkdir(dir, { recursive: true });
   const base = slugify(str(name));
-  let file = `${base}.webp`;
+  const ext = target.format ?? "webp";
+  const max = target.max ?? PHOTO_MAX;
+  let file = `${base}.${ext}`;
   for (let n = 2; ; n++) {
     if (target.url + file === currentImage || !(await exists(path.join(dir, file)))) break;
-    file = `${base}-${n}.webp`;
+    file = `${base}-${n}.${ext}`;
   }
 
-  const toWebp = (input) =>
-    sharp(input)
+  const toWebp = (input) => {
+    const resized = sharp(input)
       .rotate() // respect the phone's orientation flag
-      .resize({ width: PHOTO_MAX, height: PHOTO_MAX, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 82 })
-      .toFile(path.join(dir, file));
+      .resize({ width: max, height: max, fit: "inside", withoutEnlargement: true });
+    return (ext === "jpg"
+      ? resized.flatten({ background: "#ffffff" }).jpeg({ quality: 93, chromaSubsampling: "4:4:4" })
+      : resized.webp({ quality: 82 })
+    ).toFile(path.join(dir, file));
+  };
 
   const input = Buffer.from(match[1], "base64");
   try {
@@ -216,8 +231,8 @@ async function convertWithSips(input) {
 // photo folders above) and pushes them to GitHub, where the Deploy workflow
 // rebuilds widetim.com. Anything else that's uncommitted is left alone.
 
-const DATA_FILES = Object.values(DATASETS).map((d) => d.file);
-const PHOTO_DIRS = Object.values(PHOTO_FOLDERS).map((f) => f.dir);
+const DATA_FILES = Object.values(DATASETS).filter((d) => !d.local).map((d) => d.file);
+const PHOTO_DIRS = Object.values(PHOTO_FOLDERS).filter((f) => !f.local).map((f) => f.dir);
 // The code that reads the data files. If it has unpublished changes, the
 // data might depend on them, so publishing waits until they're committed.
 const LOADERS = "src/content/*.ts";
@@ -402,6 +417,49 @@ async function deployStatus(sha) {
   }
 }
 
+// ---------- Promo materials ----------
+// Designs for print (see promo.mjs). Everything lives in promo/, which git
+// ignores: print files and full-size photos don't belong in the public repo.
+
+// The page for the editor's preview, plus a warning if the photo is too
+// small to print sharply at this size.
+async function promoPreview(design) {
+  if (!design || typeof design !== "object") throw httpError(400, "No design to show.");
+  const trim = trimSize(design);
+  let photoNote = null;
+  const file = photoFile(design.photo);
+  if (file) {
+    try {
+      const { width, height } = await sharp(file).metadata();
+      // Worst case: the photo covers the whole page.
+      const dpi = Math.round(Math.min(width / trim.w, height / trim.h));
+      if (dpi < 200) {
+        photoNote = `This photo is ${width} × ${height} pixels, which is small for this size (about ${dpi} dots per inch ` +
+          "if it fills the page; 300 is ideal). It may print a little soft. A bigger original will look sharper.";
+      }
+    } catch {
+      photoNote = "Couldn't find that photo.";
+    }
+  }
+  return { html: await renderPromo(design), width: trim.w, height: trim.h, photoNote };
+}
+
+async function promoExport({ design, sizes, bleed }) {
+  if (!design || typeof design !== "object" || !Array.isArray(sizes)) throw httpError(400, "No design to print.");
+  const result = await exportPromo(design, { sizes, bleed: bleed !== false, baseName: slugify(str(design.name) || "promo") });
+  return { ...result, bleed: BLEED };
+}
+
+// Shows a print file (or the promo folder) in Finder.
+async function promoReveal({ file }) {
+  const base = path.join(ROOT, PROMO_DIR);
+  const target = path.join(ROOT, str(file) || PRINT_DIR);
+  if (target !== base && !target.startsWith(base + path.sep)) throw httpError(400, "That's outside the promo folder.");
+  await mkdir(path.join(ROOT, PRINT_DIR), { recursive: true });
+  await run("open", (await exists(target)) && target !== path.join(ROOT, PRINT_DIR) ? ["-R", target] : [path.join(ROOT, PRINT_DIR)]);
+  return {};
+}
+
 // ---------- HTTP ----------
 
 const TYPES = {
@@ -412,6 +470,7 @@ const TYPES = {
   ".jpeg": "image/jpeg",
   ".avif": "image/avif",
   ".svg": "image/svg+xml",
+  ".woff2": "font/woff2",
 };
 
 // Only answer this computer's own browser: the Host header must be ours (stops
@@ -427,7 +486,8 @@ function isTrusted(req) {
   return (req.headers["content-type"] ?? "").startsWith("application/json");
 }
 
-async function readJson(req, limit = 40 * 1024 * 1024) {
+// Roomy enough for a full-size artwork file headed for print.
+async function readJson(req, limit = 200 * 1024 * 1024) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
@@ -466,6 +526,8 @@ async function handle(req, res) {
   // Photos, for previews inside the editor.
   if (req.method === "GET" && pathname.startsWith("/public/")) return serveFrom(res, "public", pathname.slice(8));
   if (req.method === "GET" && pathname.startsWith("/carousel/")) return serveFrom(res, "src/assets/carousel", pathname.slice(10));
+  if (req.method === "GET" && pathname.startsWith("/promo-files/")) return serveFrom(res, PROMO_DIR, pathname.slice(13));
+  if (req.method === "GET" && pathname.startsWith("/promo-fonts/")) return serveFrom(res, "editor/fonts", pathname.slice(13));
 
   if (route === "GET /api/data") {
     const out = { preview: SITE_URL };
@@ -478,6 +540,9 @@ async function handle(req, res) {
     return send(res, 200, await save(dataset, data, version));
   }
   if (route === "POST /api/photo") return send(res, 200, await savePhoto(await readJson(req)));
+  if (route === "POST /api/promo/preview") return send(res, 200, await promoPreview((await readJson(req)).design));
+  if (route === "POST /api/promo/export") return send(res, 200, await promoExport(await readJson(req)));
+  if (route === "POST /api/promo/reveal") return send(res, 200, await promoReveal(await readJson(req)));
 
   if (route === "GET /api/publish") {
     const { files, ...status } = await publishStatus();

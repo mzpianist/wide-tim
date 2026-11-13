@@ -12,3 +12,5 @@ _old_2024/
 .claude/settings.local.json
 .Rhistory
 **/.git/
+# Promo materials for print: full-size photos and print files stay off the public repo.
+promo/
